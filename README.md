@@ -95,3 +95,5 @@ python3 -m http.server 8765 --bind 127.0.0.1
 原作程式 MIT、SpriteCollab 圖像 CC BY-NC 4.0、Pixelify Sans 字型 OFL；保留原有 `LICENSE`、`CREDITS.md` 和 `assets/fonts/OFL.txt`。Pokémon 相關商標與角色屬原權利人。本專案是個人、非商業的 fan game 修改版。
 
 觸控座標依畫布實際位置與顯示比例換算；畫布大小透過 ResizeObserver、visualViewport 與主畫面返回事件同步。`tests/touch.test.cjs` 涵蓋下方技能命中、縮放／位移、多指操作、觸控中斷，以及不觸發 window resize 的尺寸變化。實體 iPhone 的系統手勢與主畫面 App 行為仍需實機驗證。
+
+主畫面／全螢幕模式的戰鬥畫布使用 `100lvh`（舊版回退 `100vh`）填滿視窗，避開 iOS 主畫面模式可能少算動態高度而留下黑邊的情況；一般瀏覽器維持 `100dvh` 以配合工具列。安全區只影響 HUD 控制項邊距，不縮短整張畫布。相關 WebKit 回報：[254868](https://bugs.webkit.org/show_bug.cgi?id=254868)。

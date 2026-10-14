@@ -7,6 +7,13 @@ body { overscroll-behavior: none; }
 .sound-panel { right: max(12px, var(--safe-right)); }
 .toast { max-width: calc(100vw - var(--safe-left) - var(--safe-right) - 24px); bottom: max(30px, var(--safe-bottom)); }
 #game { -webkit-touch-callout: none; }
+/* Installed apps have no Safari toolbar. Some iOS versions under-report the
+   dynamic viewport with viewport-fit=cover, leaving a strip below 100dvh.
+   Fill the large viewport; reserve safe insets inside the HUD, not the canvas.
+   Keep the browser-tab 100dvh rule so Safari's toolbar can still fit on screen. */
+@media (display-mode: standalone), (display-mode: fullscreen) {
+  #game { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; height: 100lvh; }
+}
 input.field { font-size: max(16px, 1em); }
 .menu-item:disabled { opacity: .45; cursor: default; }
 #mobile-backup { z-index: 130; }
