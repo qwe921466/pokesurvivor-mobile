@@ -2,7 +2,9 @@
 from playwright.sync_api import sync_playwright
 from pathlib import Path
 import json, os, tempfile, time
+from urllib.parse import urlsplit
 URL = os.environ.get('GAME_URL', 'http://127.0.0.1:8765/PokeSurvivor-iPhone/')
+ORIGIN = '{0.scheme}://{0.netloc}/'.format(urlsplit(URL))
 EXE = os.environ.get('CHROMIUM_EXECUTABLE')
 if not EXE:
     candidates = sorted((Path.home()/'Library/Caches/ms-playwright').glob('chromium-*/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing'))
@@ -10,7 +12,7 @@ if not EXE:
 OUT = Path(__file__).resolve().parents[1]/'test-results'
 OUT.mkdir(exist_ok=True)
 profile=tempfile.mkdtemp(prefix='pokesurvivor-qa-')
-report={};errors=[];failed=[];remote=[]
+report={'tested_url':URL};errors=[];failed=[];remote=[]
 def wait_js(page, expression, timeout=30):
     until=time.monotonic()+timeout
     while time.monotonic()<until:
@@ -26,7 +28,7 @@ def state(page):
 def watch(page):
     page.on('pageerror', lambda e: errors.append(str(e)))
     page.on('response', lambda r: failed.append([r.status,r.url]) if r.status>=400 else None)
-    page.on('request', lambda r: remote.append(r.url) if not r.url.startswith(('http://127.0.0.1:8765/','data:','blob:')) else None)
+    page.on('request', lambda r: remote.append(r.url) if not r.url.startswith((ORIGIN,'data:','blob:')) else None)
 def save_report():
     (OUT/'browser-results.json').write_text(json.dumps(report,ensure_ascii=False,indent=2))
 with sync_playwright() as p:
