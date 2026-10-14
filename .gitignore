@@ -1,0 +1,8 @@
+.DS_Store
+_site/
+test-results/
+__pycache__/
+*.zip
+
+# Local delivery notes are not part of the public source repository.
+DELIVERY.md

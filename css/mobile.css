@@ -1,0 +1,21 @@
+/* Keep original UI; reserve safe areas for iPhone landscape cutouts. */
+:root { --safe-top: env(safe-area-inset-top, 0px); --safe-right: env(safe-area-inset-right, 0px); --safe-bottom: env(safe-area-inset-bottom, 0px); --safe-left: env(safe-area-inset-left, 0px); }
+body { overscroll-behavior: none; }
+.scr { padding-left: max(12px, var(--safe-left)); padding-right: max(12px, var(--safe-right)); padding-top: max(12px, var(--safe-top)); padding-bottom: max(12px, var(--safe-bottom)); }
+.topbar { top: max(8px, var(--safe-top)); right: max(12px, var(--safe-right)); max-width: calc(100vw - max(12px, var(--safe-left)) - max(12px, var(--safe-right))); }
+#credits-line { left: max(12px, var(--safe-left)); bottom: max(6px, var(--safe-bottom)); }
+.sound-panel { right: max(12px, var(--safe-right)); }
+.toast { max-width: calc(100vw - var(--safe-left) - var(--safe-right) - 24px); bottom: max(30px, var(--safe-bottom)); }
+#game { -webkit-touch-callout: none; }
+input.field { font-size: max(16px, 1em); }
+.menu-item:disabled { opacity: .45; cursor: default; }
+#mobile-backup { z-index: 130; }
+#mobile-backup .box { font-family: var(--font), system-ui; }
+#mobile-backup .note { font-family: system-ui, sans-serif; line-height: 1.5; }
+#mobile-backup .row { flex-wrap: wrap; }
+#mobile-storage-alert { position: fixed; z-index: 250; top: max(8px, var(--safe-top)); left: max(12px, var(--safe-left)); right: max(12px, var(--safe-right)); background: #602a2a; padding: 10px; border: 2px solid #fff; font-family: system-ui,sans-serif; }
+.mobile-conflict { z-index: 260; background: #0a1430ee; }
+.mobile-update { position: fixed; z-index: 100; left: max(12px, var(--safe-left)); bottom: max(28px, var(--safe-bottom)); }
+@media (max-height: 520px) { #mobile-backup .box { padding: 12px 16px; } }
+#scr-menu { padding-left: max(8px, var(--safe-left)); padding-right: max(8px, var(--safe-right)); padding-bottom: var(--safe-bottom); }
+.mobile-backup-open.menu-item { display: block; }
