@@ -20,7 +20,7 @@ jobs:
         run: |
           python3 tools/build.py
           python3 tools/verify.py
-          node --test tests/storage.test.cjs
+          node --test tests/*.test.cjs
           python3 tools/package.py _site
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v4

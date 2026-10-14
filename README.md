@@ -68,13 +68,13 @@ Safari 開啟發布後的 HTTPS 網址 → 分享 → 加入主畫面 → 如有
 ```sh
 python3 tools/build.py
 python3 tools/verify.py
-node --test tests/storage.test.cjs
+node --test tests/*.test.cjs
 python3 -m http.server 8765 --bind 127.0.0.1
 ```
 
 只為本機預覽使用 HTTP 伺服器。可用 `http://127.0.0.1:8765/`；發布後不需要執行這些程式。不要直接用 `file://` 測試 PWA。
 
-`tests/smoke.py` 是 Python Playwright 的完整瀏覽器回歸測試，需已安裝 Playwright／Chromium。可用 `GAME_URL` 指定測試網址、`CHROMIUM_EXECUTABLE` 指定 Chromium。測試只使用獨立臨時瀏覽器 profile，結果位於忽略提交的 `test-results/`。當測試網址不使用預設連接埠時，需同步調整外部請求檢查的允許來源。
+`tests/smoke.py` 是 Python Playwright 的完整瀏覽器回歸測試，需已安裝 Playwright／Chromium。可用 `GAME_URL` 指定測試網址、`CHROMIUM_EXECUTABLE` 指定 Chromium。測試只使用獨立臨時瀏覽器 profile，結果位於忽略提交的 `test-results/`。外部請求檢查以 `GAME_URL` 的來源為準。
 
 ## GitHub Pages 發布準備
 
@@ -93,3 +93,5 @@ python3 -m http.server 8765 --bind 127.0.0.1
 ## 授權與來源
 
 原作程式 MIT、SpriteCollab 圖像 CC BY-NC 4.0、Pixelify Sans 字型 OFL；保留原有 `LICENSE`、`CREDITS.md` 和 `assets/fonts/OFL.txt`。Pokémon 相關商標與角色屬原權利人。本專案是個人、非商業的 fan game 修改版。
+
+觸控座標依畫布實際位置與顯示比例換算；畫布大小透過 ResizeObserver、visualViewport 與主畫面返回事件同步。`tests/touch.test.cjs` 涵蓋下方技能命中、縮放／位移、多指操作、觸控中斷，以及不觸發 window resize 的尺寸變化。實體 iPhone 的系統手勢與主畫面 App 行為仍需實機驗證。

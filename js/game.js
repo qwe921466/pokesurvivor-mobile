@@ -31,9 +31,17 @@ G.Game = (() => {
     ctx = cv.getContext('2d');
     resize();
     addEventListener('resize', resize);
+    addEventListener('orientationchange', resize);
+    addEventListener('pageshow', resize);
+    // A PWA's CSS viewport may change without a window resize event.
+    if (window.ResizeObserver) new ResizeObserver(resize).observe(cv);
+    if (window.visualViewport) {
+      visualViewport.addEventListener('resize', resize);
+      visualViewport.addEventListener('scroll', resize);
+    }
     G.Touch.init(cv);
     // En móvil: al cambiar de app o girarlo en vertical, la partida se pausa.
-    document.addEventListener('visibilitychange', () => { if (document.hidden) autoPause(); });
+    document.addEventListener('visibilitychange', () => { if (document.hidden) autoPause(); else resize(); });
     G.RunUI.wirePause(() => { state = 'playing'; G.UI.hideAll(); }, quitRun);
     Backdrop.init();
     last = performance.now();
@@ -43,17 +51,23 @@ G.Game = (() => {
   function resize() {
     // Resolución interna como mucho ×1,5: en pantallas ×2 dibujar el doble de
     // píxeles era de lo que más costaba, y con el pixel art no se nota.
-    dpr = Math.min(1.5, window.devicePixelRatio || 1);
-    w = cv.clientWidth; h = cv.clientHeight;
-    cv.width = Math.round(w * dpr);
-    cv.height = Math.round(h * dpr);
-    G.Camera.resize(w, h, dpr);
+    const nextDpr = Math.min(1.5, window.devicePixelRatio || 1);
+    const nextW = cv.clientWidth, nextH = cv.clientHeight;
+    if (!nextW || !nextH) return; // Ignore transient hidden layouts on resume.
+    if (w !== nextW || h !== nextH || dpr !== nextDpr) {
+      w = nextW; h = nextH; dpr = nextDpr;
+      cv.width = Math.round(w * dpr);
+      cv.height = Math.round(h * dpr);
+      G.Camera.resize(w, h, dpr);
+      G.Touch.reset();
+      G.Touch.clearButtons(w, h);
+    }
     checkOrientation();
   }
 
   /** Móvil en vertical: aviso de girarlo (y pausa). */
   function checkOrientation() {
-    const portrait = G.Touch.active && innerHeight > innerWidth;
+    const portrait = G.Touch.active && h > w;
     const el = document.getElementById('rotate');
     if (!el) return;
     if (portrait && !document.getElementById('rotate-ico').innerHTML) document.getElementById('rotate-ico').innerHTML = G.Icons.html('phone', 48);

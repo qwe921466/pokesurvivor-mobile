@@ -11,6 +11,7 @@ G.Touch = (() => {
   let cv = null, stick = null;
   let active = G.Settings.touch;      // ¿se está usando táctil?
   let buttons = [];
+  let frameWidth = 0, frameHeight = 0;
 
   const R = () => 56 * (G.Settings.get('stick') || 1);
 
@@ -21,6 +22,7 @@ G.Touch = (() => {
     cv.addEventListener('pointermove', move);
     cv.addEventListener('pointerup', up);
     cv.addEventListener('pointercancel', up);
+    cv.addEventListener('lostpointercapture', up);
     cv.addEventListener('contextmenu', e => e.preventDefault());
     // iPhone: la pulsación larga sobre el juego abría la lupa y el menú de
     // "Copiar / Seleccionar todo". Cortar el toque aquí lo evita (los eventos
@@ -31,13 +33,30 @@ G.Touch = (() => {
     cv.addEventListener('touchstart', e => {
       if (e.cancelable) e.preventDefault();
       if (!active) { active = true; document.body.classList.add('touch'); }
-      for (const t of e.changedTouches) { const b = hit(t.clientX, t.clientY); if (b) press(b); }
+      for (const t of e.changedTouches) {
+        const p = canvasPoint(t.clientX, t.clientY);
+        const b = p && hit(p.x, p.y);
+        if (b) press(b);
+      }
     }, { passive: false });
     document.addEventListener('selectstart', e => {
       if (!e.target.closest || !e.target.closest('input, textarea, [contenteditable]')) e.preventDefault();
     });
     addEventListener('blur', reset);
+    addEventListener('pagehide', reset);
     document.addEventListener('visibilitychange', reset);
+  }
+
+  // HUD drawing and hit testing must share the last rendered coordinate space.
+  // iOS can move/scale the visible canvas after rotation or closing its keyboard.
+  // Read the current rect per event; do not mix screen pixels with canvas pixels.
+  function canvasPoint(clientX, clientY) {
+    const rect = cv.getBoundingClientRect();
+    if (!rect.width || !rect.height) return null;
+    return {
+      x: (clientX - rect.left) * (frameWidth || cv.clientWidth) / rect.width,
+      y: (clientY - rect.top) * (frameHeight || cv.clientHeight) / rect.height
+    };
   }
 
   function hit(x, y) {
@@ -60,17 +79,21 @@ G.Touch = (() => {
   function down(e) {
     const touchy = e.pointerType !== 'mouse';
     if (touchy && !active) { active = true; document.body.classList.add('touch'); }
-    const b = hit(e.clientX, e.clientY);
+    const p = canvasPoint(e.clientX, e.clientY);
+    if (!p) return;
+    const b = hit(p.x, p.y);
     if (b) { e.preventDefault(); press(b); return; }
     if (!touchy || stick || !G.Game || G.Game.state !== 'playing') return;
     e.preventDefault();
-    stick = { id: e.pointerId, ox: e.clientX, oy: e.clientY, x: e.clientX, y: e.clientY };
+    stick = { id: e.pointerId, ox: p.x, oy: p.y, x: p.x, y: p.y };
     try { cv.setPointerCapture(e.pointerId); } catch (err) { /* nada */ }
   }
 
   function move(e) {
     if (!stick || e.pointerId !== stick.id) return;
-    stick.x = e.clientX; stick.y = e.clientY;
+    const p = canvasPoint(e.clientX, e.clientY);
+    if (!p) { reset(); return; }
+    stick.x = p.x; stick.y = p.y;
     const dx = stick.x - stick.ox, dy = stick.y - stick.oy, d = Math.hypot(dx, dy), r = R();
     if (d > r) { stick.ox = stick.x - dx / d * r; stick.oy = stick.y - dy / d * r; }
   }
@@ -102,11 +125,20 @@ G.Touch = (() => {
     d.remove();
     return safe;
   }
-  addEventListener('resize', () => { safe = null; });
-  addEventListener('orientationchange', () => { safe = null; });
+  function viewportChanged() { safe = null; reset(); }
+  addEventListener('resize', viewportChanged);
+  addEventListener('orientationchange', viewportChanged);
+  addEventListener('pageshow', viewportChanged);
+  if (window.visualViewport) {
+    visualViewport.addEventListener('resize', viewportChanged);
+    visualViewport.addEventListener('scroll', viewportChanged);
+  }
 
   /** El HUD vacía y vuelve a registrar sus botones cada fotograma. */
-  function clearButtons() { buttons = []; }
+  function clearButtons(width, height) {
+    buttons = [];
+    if (width > 0 && height > 0) { frameWidth = width; frameHeight = height; }
+  }
   function addButton(x, y, w, h, fn, pad = 6) { buttons.push({ x, y, w, h, fn, pad }); }
 
   /** Dibuja el joystick (coordenadas de pantalla, CSS px). */

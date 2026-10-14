@@ -28,7 +28,7 @@ G.HUD = (() => {
   function draw(ctx, w, h, pl, st) {
     ctx.save();
     ctx.textBaseline = 'alphabetic';
-    G.Touch.clearButtons();
+    G.Touch.clearButtons(w, h);
     const touch = G.Touch.active;
 
     // ---------- barra de experiencia (borde superior) ----------
@@ -243,7 +243,7 @@ G.HUD = (() => {
     const totalW = n * S + (n - 1) * GAP;
     let sx = (w - totalW) / 2;
     // Por encima de la barra de inicio del iPhone (allí los toques a veces no llegan).
-    const sy = h - S - 18 - (touch ? Math.min(28, G.Touch.safeArea().bottom) : 0);
+    const sy = h - S - 18 - (touch ? G.Touch.safeArea().bottom : 0);
     const BOND = '#ff8ad8';
     const cdOf = m => m.kind === 'orbit' ? 0 : G.U.clamp(m.t / (m.cd * pl.cdMul), 0, 1);
 
@@ -354,7 +354,7 @@ G.HUD = (() => {
     // ---------- botón de pausa (táctil) ----------
     if (touch) {
       const sa = G.Touch.safeArea();
-      const bx = w - 52 - Math.min(44, sa.right), by = 12 + Math.min(20, sa.top), bs = 40;
+      const bx = w - 52 - sa.right, by = 12 + sa.top, bs = 40;
       roundRect(ctx, bx, by, bs, bs, 10);
       ctx.fillStyle = 'rgba(10,16,28,.7)'; ctx.fill();
       ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(244,248,255,.8)'; ctx.stroke();
