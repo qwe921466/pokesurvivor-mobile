@@ -1,6 +1,6 @@
-/* ============ i18n.js — idiomas (español / inglés) ============
+/* ============ i18n.js — idiomas (español / inglés / 繁體中文) ============
  * El juego está escrito en español. Si el idioma es inglés, todo texto que
- * se enseña se traduce con el diccionario de js/data/lang-en.js, sin tener que
+ * se enseña se traduce con el diccionario del idioma seleccionado, sin tener que
  * tocar cada pantalla:
  *   - el DOM (menús, cartas, avisos...) con un MutationObserver,
  *   - el canvas (HUD, avisos, números) envolviendo fillText/strokeText,
@@ -13,27 +13,28 @@
  *   3. trozos dentro de un texto más largo, sólo palabras enteras
  * Lo que escriben los jugadores (apodos) va marcado con translate="no".
  *
- * Idioma: el elegido en Ajustes; si no, /en/ en la dirección o el del navegador
- * (español si el navegador está en español, inglés en cualquier otro caso).
+ * Idioma: el elegido en Ajustes; si no, /en/ en la dirección o el predeterminado
+ * (esta edición personal usa 繁體中文 por defecto).
  */
 G.I18n = (() => {
   const KEY = 'ps.lang';
   let saved = null;
   try { saved = localStorage.getItem(KEY); } catch (e) { /* nada */ }
   const byPath = /\/en(\/|$)/.test(location.pathname) ? 'en' : null;
-  const nav = ((navigator.languages && navigator.languages[0]) || navigator.language || 'es').toLowerCase();
-  const lang = saved === 'es' || saved === 'en' ? saved : byPath || (nav.startsWith('es') ? 'es' : 'en');
+  // Personal edition defaults to Traditional Chinese; preserve explicit choices.
+  const LANGS = ['es', 'en', 'zh-Hant'];
+  const lang = LANGS.includes(saved) ? saved : byPath || 'zh-Hant';
   document.documentElement.lang = lang;
 
   const exact = new Map(), exactLow = new Map();
-  let patterns = [], frag = null, fragLow = null, fragMap = new Map();
+  let patterns = [], fragments = [], fragMap = new Map();
   const cache = new Map();
   const L = '\\p{L}\\p{N}';
   const reEsc = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
   /** Añade traducciones { 'texto en español': 'English text' }. */
-  function add(dict) {
-    const fr = [];
+  function add(dict, locale = 'en') {
+    if (locale !== lang) return;
     for (const [es, en] of Object.entries(dict)) {
       if (!en || es === en) continue;
       if (es.includes('{x}')) {
@@ -42,12 +43,16 @@ G.I18n = (() => {
       } else {
         exact.set(es, en);
         exactLow.set(es.toLowerCase(), en);
-        if (es.length >= 4 || /\s/.test(es)) { fr.push(es); fragMap.set(es.toLowerCase(), en); }
+        if (es.length >= 4 || /\s/.test(es)) { fragMap.set(es.toLowerCase(), en); }
       }
     }
-    // Una sola expresión con todos los trozos (los más largos primero), sólo palabras enteras.
-    const all = [...fragMap.keys()].sort((a, b) => b.length - a.length).map(reEsc).join('|');
-    frag = all ? new RegExp(`(?<![${L}])(${all})(?![${L}])`, 'giu') : null;
+    // Keep regex compilation bounded even with a full translated Pokédex.
+    // Match each batch against the ORIGINAL text so translations never cascade.
+    const all = [...fragMap.keys()].sort((a, b) => b.length - a.length).map(reEsc);
+    fragments = [];
+    for (let i = 0; i < all.length; i += 64) {
+      fragments.push(new RegExp(`(?<![${L}])(${all.slice(i, i + 64).join('|')})(?![${L}])`, 'giu'));
+    }
     cache.clear();
   }
 
@@ -69,6 +74,7 @@ G.I18n = (() => {
   }
 
   function core(s) {
+    if (!/\p{L}/u.test(s)) return s;
     // Respeta los espacios de alrededor (nodos de texto del DOM).
     const m = /^(\s*)([\s\S]*?)(\s*)$/.exec(s);
     // Los textos del HTML pueden ocupar varias líneas: se comparan con los espacios juntos.
@@ -87,8 +93,17 @@ G.I18n = (() => {
         break;
       }
     }
-    if (r === undefined && frag) {
-      r = body.replace(frag, w => keepCase(w, fragMap.get(w.toLowerCase()) || w));
+    if (r === undefined && fragments.length) {
+      const hits = fragments.flatMap(re => [...body.matchAll(re)]);
+      hits.sort((a, b) => a.index - b.index || b[0].length - a[0].length);
+      let end = 0;
+      r = '';
+      for (const hit of hits) {
+        if (hit.index < end) continue;
+        r += body.slice(end, hit.index) + keepCase(hit[0], fragMap.get(hit[0].toLowerCase()) || hit[0]);
+        end = hit.index + hit[0].length;
+      }
+      r += body.slice(end);
     }
     return lead + (r === undefined ? body : r) + tail;
   }
@@ -129,7 +144,7 @@ G.I18n = (() => {
     if (lang === 'es') return;
     // Los enlaces a las páginas de la web, a su versión en inglés.
     const EN_LINKS = { 'guia/': 'en/guide/', 'pokedex/': 'en/pokedex/' };
-    document.querySelectorAll('a[href]').forEach(a => { const h = a.getAttribute('href'); if (EN_LINKS[h]) a.setAttribute('href', EN_LINKS[h]); });
+    if (lang === 'en') document.querySelectorAll('a[href]').forEach(a => { const h = a.getAttribute('href'); if (EN_LINKS[h]) a.setAttribute('href', EN_LINKS[h]); });
     walk(document.body);
     new MutationObserver(ms => {
       for (const m of ms) {
@@ -154,10 +169,11 @@ G.I18n = (() => {
   }
 
   function set(l) {
+    if (!LANGS.includes(l)) return;
     try { localStorage.setItem(KEY, l); } catch (e) { /* nada */ }
     location.reload();
   }
 
-  return { lang, add, t, f, set, startDom, walk };
+  return { lang, locale: lang === 'zh-Hant' ? 'zh-TW' : lang, add, t, f, set, startDom, walk };
 })();
 G.T = G.I18n.t;

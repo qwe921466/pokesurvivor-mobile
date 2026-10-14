@@ -1,9 +1,9 @@
 <!doctype html>
 <!-- Standalone local-save edition. See README.md. -->
-<html lang="es">
+<html lang="zh-Hant">
 <head>
 <meta charset="utf-8">
-<meta name="mobile-build" content="30c66327d62f4607">
+<meta name="mobile-build" content="7df886fb0e357fcc">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; media-src 'self' blob:; connect-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'">
 <meta name="theme-color" content="#0a1430">
 <meta name="color-scheme" content="dark">
@@ -27,8 +27,8 @@
 <link rel="preload" href="assets/fonts/PixelifyPS-400.ttf" as="font" type="font/ttf" crossorigin>
 <link rel="preload" href="assets/fonts/PixelifyPS-700.ttf" as="font" type="font/ttf" crossorigin>
 
-<link rel="stylesheet" href="css/style.css?v=30c66327d62f4607">
-<link rel="stylesheet" href="css/mobile.css?v=30c66327d62f4607">
+<link rel="stylesheet" href="css/style.css?v=7df886fb0e357fcc">
+<link rel="stylesheet" href="css/mobile.css?v=7df886fb0e357fcc">
 </head>
 <body>
 
@@ -245,13 +245,16 @@
 <script>
   (function () {
     var s = null; try { s = localStorage.getItem('ps.lang'); } catch (e) {}
-    var n = ((navigator.languages && navigator.languages[0]) || navigator.language || 'es').toLowerCase();
-    var l = s === 'es' || s === 'en' ? s : (/\/en(\/|$)/.test(location.pathname) ? 'en' : (n.indexOf('es') === 0 ? 'es' : 'en'));
+    var l = ['es', 'en', 'zh-Hant'].indexOf(s) >= 0 ? s : (/\/en(\/|$)/.test(location.pathname) ? 'en' : 'zh-Hant');
     document.documentElement.lang = l;
     if (l === 'en') {
       var p = document.querySelectorAll('#boot p');
       p[0].textContent = 'A Pokémon survival game, free in your browser and on mobile.';
       p[1].textContent = 'Loading…';
+    } else if (l === 'zh-Hant') {
+      var p = document.querySelectorAll('#boot p');
+      p[0].textContent = '可在瀏覽器與手機遊玩的寶可夢生存遊戲。';
+      p[1].textContent = '載入中…';
     }
   })();
 </script>
@@ -497,83 +500,84 @@
 
 <!-- datos generados -->
 <!-- scripts:begin -->
-<script defer src="js/core/util.js?v=30c66327d62f4607"></script>
-<script defer src="js/core/i18n.js?v=30c66327d62f4607"></script>
-<script defer src="js/data/lang-en.js?v=30c66327d62f4607"></script>
-<script defer src="js/core/settings.js?v=30c66327d62f4607"></script>
-<script defer src="js/data/music.js?v=30c66327d62f4607"></script>
-<script defer src="js/data/pokedex.js?v=30c66327d62f4607"></script>
-<script defer src="js/data/sprites-meta.js?v=30c66327d62f4607"></script>
+<script defer src="js/core/util.js?v=7df886fb0e357fcc"></script>
+<script defer src="js/core/i18n.js?v=7df886fb0e357fcc"></script>
+<script defer src="js/data/lang-en.js?v=7df886fb0e357fcc"></script>
+<script defer src="js/data/lang-zh-hant.js?v=7df886fb0e357fcc"></script>
+<script defer src="js/core/settings.js?v=7df886fb0e357fcc"></script>
+<script defer src="js/data/music.js?v=7df886fb0e357fcc"></script>
+<script defer src="js/data/pokedex.js?v=7df886fb0e357fcc"></script>
+<script defer src="js/data/sprites-meta.js?v=7df886fb0e357fcc"></script>
 <!-- núcleo -->
-<script defer src="js/core/firebase-config.js?v=30c66327d62f4607"></script>
-<script defer src="js/core/db.js?v=30c66327d62f4607"></script>
-<script defer src="js/core/audio.js?v=30c66327d62f4607"></script>
-<script defer src="js/core/input.js?v=30c66327d62f4607"></script>
-<script defer src="js/core/touch.js?v=30c66327d62f4607"></script>
-<script defer src="js/core/sprites.js?v=30c66327d62f4607"></script>
-<script defer src="js/core/camera.js?v=30c66327d62f4607"></script>
+<script defer src="js/core/firebase-config.js?v=7df886fb0e357fcc"></script>
+<script defer src="js/core/db.js?v=7df886fb0e357fcc"></script>
+<script defer src="js/core/audio.js?v=7df886fb0e357fcc"></script>
+<script defer src="js/core/input.js?v=7df886fb0e357fcc"></script>
+<script defer src="js/core/touch.js?v=7df886fb0e357fcc"></script>
+<script defer src="js/core/sprites.js?v=7df886fb0e357fcc"></script>
+<script defer src="js/core/camera.js?v=7df886fb0e357fcc"></script>
 <!-- datos de juego -->
-<script defer src="js/data/moves.js?v=30c66327d62f4607"></script>
-<script defer src="js/data/types.js?v=30c66327d62f4607"></script>
-<script defer src="js/data/starters.js?v=30c66327d62f4607"></script>
-<script defer src="js/data/enemies.js?v=30c66327d62f4607"></script>
-<script defer src="js/data/upgrades.js?v=30c66327d62f4607"></script>
-<script defer src="js/data/items.js?v=30c66327d62f4607"></script>
-<script defer src="js/data/missions.js?v=30c66327d62f4607"></script>
-<script defer src="js/data/achievements.js?v=30c66327d62f4607"></script>
-<script defer src="js/data/funding.js?v=30c66327d62f4607"></script>
-<script defer src="js/data/changelog.js?v=30c66327d62f4607"></script>
+<script defer src="js/data/moves.js?v=7df886fb0e357fcc"></script>
+<script defer src="js/data/types.js?v=7df886fb0e357fcc"></script>
+<script defer src="js/data/starters.js?v=7df886fb0e357fcc"></script>
+<script defer src="js/data/enemies.js?v=7df886fb0e357fcc"></script>
+<script defer src="js/data/upgrades.js?v=7df886fb0e357fcc"></script>
+<script defer src="js/data/items.js?v=7df886fb0e357fcc"></script>
+<script defer src="js/data/missions.js?v=7df886fb0e357fcc"></script>
+<script defer src="js/data/achievements.js?v=7df886fb0e357fcc"></script>
+<script defer src="js/data/funding.js?v=7df886fb0e357fcc"></script>
+<script defer src="js/data/changelog.js?v=7df886fb0e357fcc"></script>
 <!-- mundo -->
-<script defer src="js/world/tiles.js?v=30c66327d62f4607"></script>
-<script defer src="js/world/world.js?v=30c66327d62f4607"></script>
+<script defer src="js/world/tiles.js?v=7df886fb0e357fcc"></script>
+<script defer src="js/world/world.js?v=7df886fb0e357fcc"></script>
 <!-- entidades -->
-<script defer src="js/entities/vfx.js?v=30c66327d62f4607"></script>
-<script defer src="js/entities/fx.js?v=30c66327d62f4607"></script>
-<script defer src="js/entities/projectile.js?v=30c66327d62f4607"></script>
-<script defer src="js/entities/enemy.js?v=30c66327d62f4607"></script>
-<script defer src="js/entities/pickup.js?v=30c66327d62f4607"></script>
-<script defer src="js/entities/player.js?v=30c66327d62f4607"></script>
+<script defer src="js/entities/vfx.js?v=7df886fb0e357fcc"></script>
+<script defer src="js/entities/fx.js?v=7df886fb0e357fcc"></script>
+<script defer src="js/entities/projectile.js?v=7df886fb0e357fcc"></script>
+<script defer src="js/entities/enemy.js?v=7df886fb0e357fcc"></script>
+<script defer src="js/entities/pickup.js?v=7df886fb0e357fcc"></script>
+<script defer src="js/entities/player.js?v=7df886fb0e357fcc"></script>
 <!-- sistemas -->
-<script defer src="js/systems/combat.js?v=30c66327d62f4607"></script>
-<script defer src="js/systems/spawner.js?v=30c66327d62f4607"></script>
-<script defer src="js/systems/levelup.js?v=30c66327d62f4607"></script>
-<script defer src="js/systems/gacha.js?v=30c66327d62f4607"></script>
-<script defer src="js/systems/interact.js?v=30c66327d62f4607"></script>
-<script defer src="js/systems/rift.js?v=30c66327d62f4607"></script>
-<script defer src="js/systems/judgment.js?v=30c66327d62f4607"></script>
-<script defer src="js/systems/events.js?v=30c66327d62f4607"></script>
-<script defer src="js/systems/weather.js?v=30c66327d62f4607"></script>
-<script defer src="js/systems/pathing.js?v=30c66327d62f4607"></script>
-<script defer src="js/systems/progress.js?v=30c66327d62f4607"></script>
-<script defer src="js/systems/hazards.js?v=30c66327d62f4607"></script>
+<script defer src="js/systems/combat.js?v=7df886fb0e357fcc"></script>
+<script defer src="js/systems/spawner.js?v=7df886fb0e357fcc"></script>
+<script defer src="js/systems/levelup.js?v=7df886fb0e357fcc"></script>
+<script defer src="js/systems/gacha.js?v=7df886fb0e357fcc"></script>
+<script defer src="js/systems/interact.js?v=7df886fb0e357fcc"></script>
+<script defer src="js/systems/rift.js?v=7df886fb0e357fcc"></script>
+<script defer src="js/systems/judgment.js?v=7df886fb0e357fcc"></script>
+<script defer src="js/systems/events.js?v=7df886fb0e357fcc"></script>
+<script defer src="js/systems/weather.js?v=7df886fb0e357fcc"></script>
+<script defer src="js/systems/pathing.js?v=7df886fb0e357fcc"></script>
+<script defer src="js/systems/progress.js?v=7df886fb0e357fcc"></script>
+<script defer src="js/systems/hazards.js?v=7df886fb0e357fcc"></script>
 <!-- red: amigos, salas, cooperativo y ranking -->
-<script defer src="js/net/social.js?v=30c66327d62f4607"></script>
-<script defer src="js/net/signups.js?v=30c66327d62f4607"></script>
-<script defer src="js/net/net.js?v=30c66327d62f4607"></script>
-<script defer src="js/net/coop.js?v=30c66327d62f4607"></script>
-<script defer src="js/net/ranking.js?v=30c66327d62f4607"></script>
+<script defer src="js/net/social.js?v=7df886fb0e357fcc"></script>
+<script defer src="js/net/signups.js?v=7df886fb0e357fcc"></script>
+<script defer src="js/net/net.js?v=7df886fb0e357fcc"></script>
+<script defer src="js/net/coop.js?v=7df886fb0e357fcc"></script>
+<script defer src="js/net/ranking.js?v=7df886fb0e357fcc"></script>
 <!-- interfaz -->
-<script defer src="js/ui/icons.js?v=30c66327d62f4607"></script>
-<script defer src="js/ui/ui.js?v=30c66327d62f4607"></script>
-<script defer src="js/ui/hud.js?v=30c66327d62f4607"></script>
-<script defer src="js/ui/login.js?v=30c66327d62f4607"></script>
-<script defer src="js/ui/test.js?v=30c66327d62f4607"></script>
-<script defer src="js/ui/menu.js?v=30c66327d62f4607"></script>
-<script defer src="js/ui/slots.js?v=30c66327d62f4607"></script>
-<script defer src="js/ui/gacha-ui.js?v=30c66327d62f4607"></script>
-<script defer src="js/ui/run-ui.js?v=30c66327d62f4607"></script>
-<script defer src="js/ui/social-ui.js?v=30c66327d62f4607"></script>
-<script defer src="js/ui/ranking-ui.js?v=30c66327d62f4607"></script>
-<script defer src="js/ui/mod-ui.js?v=30c66327d62f4607"></script>
-<script defer src="js/ui/goals-ui.js?v=30c66327d62f4607"></script>
-<script defer src="js/ui/settings-ui.js?v=30c66327d62f4607"></script>
-<script defer src="js/ui/support-ui.js?v=30c66327d62f4607"></script>
-<script defer src="js/ui/news-ui.js?v=30c66327d62f4607"></script>
-<script defer src="js/core/updater.js?v=30c66327d62f4607"></script>
+<script defer src="js/ui/icons.js?v=7df886fb0e357fcc"></script>
+<script defer src="js/ui/ui.js?v=7df886fb0e357fcc"></script>
+<script defer src="js/ui/hud.js?v=7df886fb0e357fcc"></script>
+<script defer src="js/ui/login.js?v=7df886fb0e357fcc"></script>
+<script defer src="js/ui/test.js?v=7df886fb0e357fcc"></script>
+<script defer src="js/ui/menu.js?v=7df886fb0e357fcc"></script>
+<script defer src="js/ui/slots.js?v=7df886fb0e357fcc"></script>
+<script defer src="js/ui/gacha-ui.js?v=7df886fb0e357fcc"></script>
+<script defer src="js/ui/run-ui.js?v=7df886fb0e357fcc"></script>
+<script defer src="js/ui/social-ui.js?v=7df886fb0e357fcc"></script>
+<script defer src="js/ui/ranking-ui.js?v=7df886fb0e357fcc"></script>
+<script defer src="js/ui/mod-ui.js?v=7df886fb0e357fcc"></script>
+<script defer src="js/ui/goals-ui.js?v=7df886fb0e357fcc"></script>
+<script defer src="js/ui/settings-ui.js?v=7df886fb0e357fcc"></script>
+<script defer src="js/ui/support-ui.js?v=7df886fb0e357fcc"></script>
+<script defer src="js/ui/news-ui.js?v=7df886fb0e357fcc"></script>
+<script defer src="js/core/updater.js?v=7df886fb0e357fcc"></script>
 <!-- juego -->
-<script defer src="js/game.js?v=30c66327d62f4607"></script>
-<script defer src="js/mobile.js?v=30c66327d62f4607"></script>
-<script defer src="js/main.js?v=30c66327d62f4607"></script>
+<script defer src="js/game.js?v=7df886fb0e357fcc"></script>
+<script defer src="js/mobile.js?v=7df886fb0e357fcc"></script>
+<script defer src="js/main.js?v=7df886fb0e357fcc"></script>
 <!-- scripts:end -->
 </body>
 </html>
