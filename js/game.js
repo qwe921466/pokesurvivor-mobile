@@ -327,6 +327,7 @@ G.Game = (() => {
     const mark = { t: Math.floor(time), lv: pl.level, kills: pl.kills };
     // Si la partida se ha tocado (ver clean()), no sube al ranking (sin avisar); lo demás, sí.
     const ok = clean();
+    if (ok && !coop) G.Cloud.completedRun(Object.assign({}, mark, { dex: pl.dex, shiny: pl.shiny }));
     if (ok && !coop) G.Ranking.submitSolo(Object.assign(mark, { dex: pl.dex, shiny: pl.shiny }));
     else if (ok && wasHost) G.Ranking.submitGroup(Object.assign(mark, { members: team }));
 
@@ -868,7 +869,8 @@ G.Flow = {
     G.Audio.music('village');     // suena tras el primer clic (lo exige el navegador)
     G.Game.init();
     // La base de datos (nube o local) recupera la sesión anterior.
-    G.DB.ready().then(restored => {
+    G.DB.ready().then(async restored => {
+      await G.Cloud.restore(); restored = G.DB.loggedIn;
       document.getElementById('boot').classList.add('hidden');
       // En otra tarea: crear el sonido para comprobarlo cuesta ~60 ms y no debe bloquear la carga.
       setTimeout(() => this.tapToStart(() => { if (restored) this.afterLogin(); else this.toLogin(); }), 0);
@@ -916,7 +918,7 @@ G.Flow = {
       G.LobbyUI.open();
     } else this.goMenu();
   },
-  play() { G.Game.startRun(); },
+  async play() { if (this.starting) return; this.starting = true; try { if (await G.Cloud.beforePlay()) G.Game.startRun(); } finally { this.starting = false; } },
   /** Empieza la partida en grupo (el anfitrión la manda a todos). */
   startCoop(cfg) {
     if (G.Game.state !== 'ui' || !G.Social.room) return;

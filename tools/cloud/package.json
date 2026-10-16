@@ -1,0 +1,8 @@
+{
+  "dependencies": {
+    "@firebase/rules-unit-testing": "6.0.0",
+    "esbuild": "0.25.12",
+    "firebase": "13.0.0",
+    "firebase-tools": "15.34.0"
+  }
+}

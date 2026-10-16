@@ -1,6 +1,6 @@
 /* Local-only persistence; adapted from JPTER78 db.js (MIT).
  * Stable storage namespace: never put a release/build number in these keys.
- * No SDK, remote authentication or cloud synchronization exists in this module.
+ * Cloud identity/sync is optional and isolated in cloud.js; original backend stays disabled.
  */
 G.DB = (() => {
   const PREFIX = 'pokesurvivor.mobile.';
@@ -227,6 +227,13 @@ G.DB = (() => {
       begin(k, a.name, load(k, a.name)); return { ok: true, isNew: !save.partner };
     } catch (e) { return { ok: false, error: e.message }; }
   }
+  function useCloud(id, next) {
+    const k = "@cloud:" + id, s = validateSave(next, next.name);
+    const accs = read(K_ACC) || {};
+    accs[k] = { name:s.name, cloud:true };
+    if (!write(K_ACC, accs) || !write(K_SAVE + k, s)) throw new Error("無法保存雲端存檔的本機副本。");
+    begin(k, s.name, s);
+  }
   function persist(next) {
     if (!key || guest || stale) return false;
     try {
@@ -236,6 +243,7 @@ G.DB = (() => {
         try { validateSave(JSON.parse(old), user); localStorage.setItem(K_SAVE + key + '.previous', old); }
         catch (e) { if (e.name === 'QuotaExceededError' || e.name === 'SecurityError') throw e; }
       }
+      if (key.startsWith("@cloud:")) G.Cloud.capture(validateSave(next, user));
       if (!write(K_SAVE + key, next)) return false;
       listeners.forEach(fn => fn('local')); return true;
     } catch { storageOk = false; notify('存檔空間不足或無法寫入。請立即匯出備份。'); return false; }
@@ -272,10 +280,12 @@ G.DB = (() => {
   async function logout() {
     for (const fn of leaveHooks) { try { await fn('logout'); } catch {} }
     if (!guest) commit();
+    if (key?.startsWith("@cloud:")) await G.Cloud.disconnect();
     try { localStorage.removeItem(K_SES); } catch {}
     user = key = save = null; guest = false;
   }
   async function deleteAccount(pass) {
+    if (key?.startsWith("@cloud:")) return { ok:false, error:"雲端帳號刪除請聯絡網站管理者；登出不會刪除進度。" };
     if (!key || guest || stale) return { ok: false, error: '沒有可刪除的本機帳號。' };
     try {
       const accs = read(K_ACC) || {}, a = accs[key];
@@ -305,11 +315,13 @@ G.DB = (() => {
   document.addEventListener('visibilitychange', () => { if (document.hidden) commit(); });
   const unavailable = async () => ({ ok: false, error: '本機版停用線上帳號功能。' });
   return { ready, register, login, playAsGuest, logout, deleteAccount, commit, exportSave, previewImport, importSave,
-    owns, grant, ownsShiny, grantShiny, upgradesOf, setName,
+    owns, grant, ownsShiny, grantShiny, upgradesOf, setName, useCloud, validateSave, newSave,
+    get isStale() { return stale; },
+    get cloudUid() { return key?.startsWith("@cloud:") ? key.slice(7) : null; },
     loginWithGoogle: unavailable, linkGoogle: unavailable, flush: async () => commit(),
     onSync(fn) { listeners.add(fn); }, onLeave(fn) { leaveHooks.push(fn); },
     get fb() { return null; }, get online() { return false; }, get nameAccount() { return !!key; }, get hasGoogle() { return false; },
-    get mode() { return 'local'; }, get localReason() { return 'standalone'; }, get syncState() { return storageOk ? 'local' : 'offline'; },
+    get mode() { return key?.startsWith('@cloud:') ? 'personal-cloud' : 'local'; }, get localReason() { return 'standalone'; }, get syncState() { return !storageOk ? 'offline' : key?.startsWith('@cloud:') ? (G.Cloud?.status || 'pending') : 'local'; },
     get user() { return user; }, get guest() { return guest; }, get save() { return save; }, get loggedIn() { return !!save; },
     get storageOk() { return storageOk; }, START_COINS
   };

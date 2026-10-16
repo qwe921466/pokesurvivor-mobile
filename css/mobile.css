@@ -37,3 +37,11 @@ input.field { font-size: max(16px, 1em); }
     padding-top: max(52px, calc(var(--safe-top) + 44px));
   }
 }
+
+/* Personal cloud panels stay scrollable inside the safe viewport. */
+#mobile-cloud, #mobile-ranks { z-index: 170; padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left)); }
+#mobile-cloud .box, #mobile-ranks .box { max-height:100%; overflow-y:auto; overscroll-behavior:contain; }
+#cloud-compare { white-space:pre-line; }
+#mobile-cloud label { display:block; margin-top:10px; }
+#mobile-rank-list .rk-row { gap:8px; flex-wrap:wrap; }
+.sync.conflict { background:#ff6480; }

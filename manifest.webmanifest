@@ -1,8 +1,8 @@
 {
   "id": "./",
-  "name": "PokéSurvivor Local",
+  "name": "PokéSurvivor 個人版",
   "short_name": "PokéSurvivor",
-  "description": "寶可夢生存遊戲個人版，單人遊玩，進度儲存在此裝置。",
+  "description": "寶可夢生存遊戲個人版，支援雲端存檔同步與共同排行榜。",
   "lang": "zh-Hant",
   "start_url": "./",
   "scope": "./",

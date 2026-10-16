@@ -1,4 +1,4 @@
-# PokéSurvivor — iPhone 本機存檔版
+# PokéSurvivor — iPhone 個人版（雲端帳號／同步／排行榜）
 
 此版本從已驗證的 `PokeSurvivor-Cheats` 複製並調整，保留原作遊戲及 UI。原作者：[JPTER78/pokesurvivor](https://github.com/JPTER78/pokesurvivor)。這是個人使用的非官方單人修改版。
 
@@ -8,9 +8,27 @@
 
 - 正式環境只需要 GitHub Pages 提供 HTML、CSS、JavaScript、字型及圖片，不需要 Mac、Python、Node 或任何自建後端持續運作。
 - `index.html` 是首頁，直接載入修改過的分檔 JavaScript；沒有 `app.min.js`。`dev.html` 導向同一首頁，避免版本分歧。
-- `js/core/db.js` 只有本機資料層，沒有 Firebase SDK 或雲端登入／同步程式碼；`firebase-config.js` 固定為 `null`。
-- 好友、多人連線與排行榜已停用。沿用部分原作網路模組中的共用功能（例如任務日期），但 `DB.online` 永遠為 false、`DB.fb` 永遠為 null。CSP 額外限制連線只能到網站自己的來源。
+- `js/core/db.js` 保留原本本機帳號；`cloud.js`／`cloud-sync.js` 提供獨立雲端帳號與版本式同步。官方 `firebase-config.js` 仍固定為 `null`。
+- 好友與多人連線仍停用。原作 `DB.online` 永遠為 false、`DB.fb` 永遠為 null；新的共用排行榜走本站專案。CSP 僅允許本站及 Firebase Auth／Firestore API，不載入遠端 SDK。
 - 所有資源使用相對路徑，支援 GitHub Pages 的 `/pokesurvivor-mobile/` 子路徑。
+
+
+## 雲端帳號與共同排行榜
+
+專案 `pokesurvivor-mobile` 為本站管理者自己的 Firebase Spark 專案，Firestore 位於 `asia-east1`。不連結付費帳單，也不啟用 Analytics、Functions、Storage 或官方後端。
+
+1. 舊手機先登入原本本機帳號，建議匯出一份 JSON。主選單「存檔與備份」→「雲端帳號與同步」→「建立雲端帳號」，填電子郵件、至少 8 字元密碼及排行榜暱稱，勾選帶入目前進度。
+2. 原本本機存檔保留。雲端 UID 另有獨立本機副本；登入已有雲端進度的帳號時優先下載，不用本機初始值覆蓋。
+3. 電腦開啟相同網址，使用雲端電子郵件與密碼登入。等到「已同步，可以切換裝置」再換裝置；戰鬥中途不支援跨裝置接續。
+4. 離線變更先存在本機，連線後以交易檢查 revision。兩台裝置同時改動會顯示衝突，保留兩份備份並讓玩家選擇，不自動合併資源。
+5. 共同排行榜顯示所有加入雲端的玩家之最長生存時間前 100 名。新帳號先列為尚無成績；升級後完成的單人戰鬥可上傳。這是玩家端回報的休閒排行榜，有數值界線及身分隔離，不能防止進階玩家修改自己的客戶端。
+6. 電子郵件、驗證憑證與完整存檔不公開。只有暱稱、寶可夢、時間、等級、擊殺數與成績時間戳可供已登入玩家讀取。此版雲端帳號刪除由站長處理；原本本機帳號刪除功能維持。
+
+新鍵 `pokesurvivor.mobile.cloud.<uid>` 原子保存同步版本、進度與待上傳操作；`.recovery` 內容保留最近一次衝突的雙份快照。Firebase SDK 自行管理登入持續性，匯出檔只含遊戲欄位。
+
+雲端權限：`cloud/firestore.rules`。私有 `mobileSaves/<uid>` 只允許本人讀寫；`mobileRanks/<uid>` 只有本人可寫，查詢需登入且每次最多 100 筆；其他路徑預設拒絕。Web config 是公開專案識別，不是管理員金鑰。
+
+維護測試使用 Node >=24.12、Java 21：`npm ci --prefix tools/cloud`，再執行 `tools/cloud/node_modules/.bin/firebase emulators:exec --project demo-pokesurvivor --only auth,firestore "node --test tools/cloud/rules.test.mjs && node --test tools/cloud/integration.test.mjs"`。正式站點不需要 Node／Java 或本機模擬器。
 
 ## 新帳號與存檔
 

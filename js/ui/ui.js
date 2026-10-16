@@ -35,9 +35,9 @@ G.UI = (() => {
     // Punto de sincronización: verde = guardado en la nube, amarillo = guardando,
     // rojo = sin conexión (se guarda en local y se sube al volver).
     const st = G.DB.guest ? 'guest' : G.DB.syncState;
-    const TIP = { ok: 'Guardado en la nube', syncing: 'Guardando…', pending: 'Guardando…',
+    const TIP = { ok: 'Guardado en la nube', syncing: 'Guardando…', pending: '已存此裝置，尚待上傳', conflict: '存檔衝突，請開啟雲端同步',
                   offline: '無法寫入本機存檔，請立即匯出備份', local: 'Guardado sólo en este navegador', guest: 'Invitado: no se guarda' };
-    $('user-pill').innerHTML = G.Icons.html(G.DB.guest ? 'user' : 'crown', 18) + ' <span translate="no">' + (G.DB.guest ? G.T('Invitado') : (G.DB.user || '')) + '</span>' +
+    $('user-pill').innerHTML = G.Icons.html(G.DB.guest ? 'user' : 'crown', 18) + ' <span translate="no">' + (G.DB.guest ? G.T('Invitado') : String(G.DB.user || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))) + '</span>' +
       `<i class="sync ${st}" title="${TIP[st] || ''}"></i>`;
     $('user-pill').title = TIP[st] || '';
   }
@@ -101,14 +101,14 @@ G.UI = (() => {
 
   // ---------------- aviso legal ----------------
 
-  const CONTACT = 'jpieratorregrosa@gmail.com';
-  const REPO = 'https://github.com/JPTER78/pokesurvivor';
+  const CONTACT = 'https://github.com/qwe921466/pokesurvivor-mobile/issues';
+  const REPO = 'https://github.com/qwe921466/pokesurvivor-mobile';
   let legalBack = null;
 
   function openLegal() {
     legalBack = SCREENS.find(s => isOpen(s)) || null;
-    $('legal-mail').textContent = CONTACT;
-    $('legal-mail').href = 'mailto:' + CONTACT + '?subject=Pok%C3%A9Survivor';
+    $('legal-mail').textContent = '本站 GitHub Issues';
+    $('legal-mail').href = CONTACT;
     $('legal-repo').textContent = REPO.replace('https://', '');
     $('legal-repo').href = REPO;
     const canDelete = G.DB.loggedIn && !G.DB.guest;

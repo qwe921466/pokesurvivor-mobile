@@ -5,20 +5,21 @@
   const panel = document.createElement('section');
   panel.id = 'mobile-backup'; panel.className = 'scr dim hidden'; panel.setAttribute('translate', 'no');
   panel.innerHTML = `<div class="box" role="dialog" aria-modal="true" aria-labelledby="backup-title" style="width:min(620px,100%)">
-    <h2 id="backup-title">存檔與備份</h2>
-    <p class="note">帳號、Pokémon、抽獎券、金幣、升級及已結算的遊戲成果會自動保存在此瀏覽器。關閉後不會補滿初始資源。進行中的戰鬥不支援關閉後從原地繼續。</p>
+    <h2 id="backup-title">存檔與備份</h2><button class="btn gold mobile-cloud-open" type="button">雲端帳號與同步</button>
+    <p class="note">Pokémon、抽獎券、金幣、升級及已結算成果會保存在此裝置；雲端帳號會在連網時同步。切換裝置前請確認「已同步」。關閉後不會補滿初始資源。進行中的戰鬥不支援關閉後從原地繼續。</p>
     <p id="mobile-save-info" class="sub"></p>
     <div class="row"><button class="btn gold" id="mobile-export">匯出 JSON 備份</button><button class="btn" id="mobile-import">匯入備份</button></div>
     <input id="mobile-import-file" type="file" accept=".json,application/json" hidden>
     <p id="mobile-backup-status" class="note" role="status" aria-live="polite"></p>
     <h3>在 iPhone 上使用</h3>
-    <p class="note">用 Safari 開啟正式 HTTPS 網址 → 分享 → 加入主畫面（如有選項，啟用「作為網頁 App 開啟」）→ 從圖示開啟，將手機橫放。Safari 與主畫面 App 可能不共用存檔；先從原位置匯出，再於新的本機帳號匯入。</p>
-    <p class="note">下載備份時可使用「儲存到檔案」。換手機時在新手機建立本機帳號，再選擇 JSON 備份。備份沒有密碼或登入權杖。</p>
+    <p class="note">用 Safari 開啟正式 HTTPS 網址 → 分享 → 加入主畫面（如有選項，啟用「作為網頁 App 開啟」）→ 從圖示開啟，將手機橫放。Safari 與主畫面 App 的本機存檔可能分開；雲端帳號可登入同一帳號同步，本機帳號請先匯出再匯入。</p>
+    <p class="note">下載備份時可使用「儲存到檔案」。換手機可登入同一雲端帳號，或建立本機帳號後匯入 JSON 備份。備份沒有密碼或登入權杖。</p>
     <p class="note">請避免無痕模式。清除網站資料或系統回收儲存空間會影響本機存檔，請定期另存備份。快取只涵蓋核心程式及已載入素材；首次或尚未載入的內容需要網路。</p>
     <button class="btn" id="mobile-persist">請求持續保留網站資料</button>
     <button class="btn ghost" id="mobile-backup-close">關閉</button>
   </div>`;
   document.body.appendChild(panel);
+  panel.querySelector('.mobile-cloud-open').onclick = () => { panel.classList.add('hidden'); G.CloudUI.open(); };
   const alert = document.createElement('div');
   alert.id = 'mobile-storage-alert'; alert.className = 'hidden'; alert.setAttribute('translate','no');
   alert.innerHTML = '<span></span> <button class="btn small">匯出備份</button>';
@@ -26,7 +27,7 @@
   function open() {
     panel.classList.remove('hidden');
     const s = G.DB.save;
-    $('mobile-save-info').textContent = s ? `${G.DB.guest ? '訪客（不會存檔）' : '本機帳號 ' + G.DB.user} · 金幣 ${s.coins.toLocaleString()} · 單抽券 ${s.tickets.t1} · 十連券 ${s.tickets.t10}` : '請先建立本機帳號；匯入會覆蓋目前登入帳號的進度。';
+    $('mobile-save-info').textContent = s ? `${G.DB.guest ? '訪客（不會存檔）' : (G.DB.cloudUid ? '雲端帳號 ' : '本機帳號 ') + G.DB.user} · 金幣 ${s.coins.toLocaleString()} · 單抽券 ${s.tickets.t1} · 十連券 ${s.tickets.t10}` : '請先建立本機帳號；匯入會覆蓋目前登入帳號的進度。';
     $('mobile-export').disabled = !s;
     $('mobile-import').disabled = !s || G.DB.guest;
     $('mobile-backup-status').textContent = warning;

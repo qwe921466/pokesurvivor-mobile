@@ -28,7 +28,7 @@ G.NewsUI = (() => {
     const text = pair => G.I18n.lang === 'zh-Hant' ? G.T(pair[0]) : pair[en];
     // Cada texto ya va en su idioma: translate="no" para que no lo toque i18n.
     const PARTS = [['new', ['Nuevo', 'New']], ['chg', ['Cambios', 'Changes']], ['fix', ['Arreglos', 'Fixes']]];
-    $('news-body').innerHTML = (G.I18n.lang === 'zh-Hant' ? '<p class="note" translate="no">以下為原作歷史更新；本機版未啟用雲端帳號、排行榜或多人連線。</p>' : '') + G.CHANGELOG.map(v =>
+    $('news-body').innerHTML = (G.I18n.lang === 'zh-Hant' ? '<p class="note" translate="no">以下為原作歷史更新；本站採獨立雲端帳號與排行榜，多人連線尚未啟用。</p>' : '') + G.CHANGELOG.map(v =>
       `<div class="news-day" translate="no"><h3>${esc(v.title ? text(v.title) : '')}<small>${fmt(v.d)}</small></h3>` +
       PARTS.filter(([k]) => v[k] && v[k].length).map(([k, lbl]) =>
         `<div class="news-part"><span class="news-tag ${k}">${esc(text(lbl))}</span><ul>${v[k].map(t => `<li>${esc(text(t))}</li>`).join('')}</ul></div>`).join('') +
