@@ -134,13 +134,13 @@ G.SettingsUI = (() => {
     const nick = G.Social.me ? G.Social.me.name : (G.DB.user || '');
     const kind = G.DB.cloudUid ? '本站雲端帳號（電子郵件）' : G.DB.mode === 'local' ? 'Cuenta de este navegador' : G.DB.nameAccount ? 'Nombre y contraseña' : 'Google';
     box.innerHTML = section('Cuenta')
-      + `<div class="set-row"><div class="grow"><b>Apodo</b><small>Es único y no se puede cambiar.</small></div><span class="gold" translate="no">${esc(nick)}</span></div>`
+      + `<div class="set-row"><div class="grow"><b>Apodo</b><small>${G.DB.cloudUid ? '暱稱可與他人同名，帳號由電子郵件識別。' : 'Es único y no se puede cambiar.'}</small></div><span class="gold" translate="no">${esc(nick)}</span></div>`
       + `<div class="set-row"><div class="grow"><b>Tipo de cuenta</b></div><span>${esc(kind)}</span></div>`
       + `<div class="set-row"><div class="grow"><b>Partida</b></div><span>${esc(SYNC[st] || st)}</span></div>`
       + `<div class="row wrap" style="gap:8px;margin-top:12px">
            <button class="btn" id="set-logout">Cerrar sesión</button>
-           <button class="btn danger" id="set-delete">Borrar cuenta</button>
-         </div><p class="note" id="set-msg"></p>`;
+           <button class="btn danger" id="set-delete" ${G.DB.cloudUid ? 'disabled' : ''}>Borrar cuenta</button>
+         </div><p class="note" id="set-msg">${G.DB.cloudUid ? '雲端帳號刪除請聯絡本站管理者。' : ''}</p>`;
   }
 
   function wire(box) {

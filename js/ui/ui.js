@@ -111,9 +111,9 @@ G.UI = (() => {
     $('legal-mail').href = CONTACT;
     $('legal-repo').textContent = REPO.replace('https://', '');
     $('legal-repo').href = REPO;
-    const canDelete = G.DB.loggedIn && !G.DB.guest;
+    const canDelete = G.DB.loggedIn && !G.DB.guest && !G.DB.cloudUid;
     $('legal-delete').disabled = !canDelete;
-    $('legal-del-msg').textContent = canDelete ? '' : 'Inicia sesión para poder borrar tu cuenta.';
+    $('legal-del-msg').textContent = G.DB.cloudUid ? '雲端帳號刪除請聯絡本站管理者。' : canDelete ? '' : 'Inicia sesión para poder borrar tu cuenta.';
     $('scr-legal').classList.remove('hidden');
   }
 
