@@ -25,6 +25,24 @@ G.Social = (() => {
   const VALID = /^[A-Za-z0-9_ñÑáéíóúÁÉÍÓÚ]{3,16}$/;
   const MAX_PLAYERS = 4;
   const INVITE_TTL = 3 * 60 * 1000;
+  /*
+   * Hora real: la del servidor de la web (cabecera Date de version.json, gratis).
+   * Si el reloj del aparato va adelantado (p. ej. la zona horaria mal puesta),
+   * todas las invitaciones parecían caducadas y se borraban sin enseñarse, y
+   * los amigos salían siempre desconectados (pasaba en 2026-10).
+   */
+  let skew = 0;
+  const now = () => Date.now() + skew;
+  function measureSkew() {
+    const t0 = Date.now();
+    fetch('version.json?t=' + t0, { method: 'HEAD', cache: 'no-store' }).then(r => {
+      const d = Date.parse(r.headers.get('date') || '');
+      if (!d) return;
+      const s = d + 500 - (t0 + Date.now()) / 2;          // (la cabecera va en segundos)
+      skew = Math.abs(s) > 60000 ? s : 0;
+      if (skew) console.warn('[Social] el reloj de este aparato va desfasado', Math.round(skew / 60000), 'min: se corrige');
+    }).catch(() => {});
+  }
   // Latido de presencia: cada 30 min (era 15; antes 10). 57.000 jugadores con
   // amigos lo escribían 4 veces por hora (13-10-2026, menos gasto de Firestore).
   const BEAT = 30 * 60 * 1000;
@@ -58,6 +76,7 @@ G.Social = (() => {
     if (started) return me ? 'ok' : 'need-nick';
     fb = G.DB.fb; uid = fb.uid;
     started = true;
+    measureSkew();
     // El apodo no cambia nunca: se recuerda en este navegador y así no se lee
     // el perfil en cada visita (una lectura menos por jugador y sesión).
     const NICK = 'ps.nick.' + uid;
@@ -216,7 +235,7 @@ G.Social = (() => {
     presAt = Date.now();
     const ok = [...friends.values()].filter(f => f.status === 'ok');
     const docs = await Promise.all(ok.map(f => fb.fs.collection('pres').doc(f.uid).get().catch(() => null)));
-    const t = Date.now();
+    const t = now();
     ok.forEach((f, i) => {
       const v = docs[i] && docs[i].exists ? docs[i].data() : null;
       const on = !!(v && v.on && t - msOf(v.at) < ONLINE);
@@ -413,10 +432,10 @@ G.Social = (() => {
 
   function onInvite(ref, v) {
     // Las caducadas se borran; sólo se aceptan de amigos confirmados.
-    if (!v || (v.at && Date.now() - msOf(v.at) > INVITE_TTL)) { ref.delete().catch(() => {}); return; }
+    if (!v || (v.at && now() - msOf(v.at) > INVITE_TTL)) { ref.delete().catch(() => {}); return; }
     const f = friends.get(v.from);
     if (f && f.status !== 'ok') return;
-    invites.set(v.from, { from: v.from, name: v.name, room: v.room, at: msOf(v.at) || Date.now() });
+    invites.set(v.from, { from: v.from, name: v.name, room: v.room, at: msOf(v.at) || now() });
     emit('invites');
   }
 
@@ -424,7 +443,7 @@ G.Social = (() => {
 
   async function acceptInvite(from) {
     const inv = invites.get(from);
-    if (!inv || Date.now() - inv.at > INVITE_TTL) { invites.delete(from); emit('invites'); return { ok: false, error: 'La invitación ha caducado.' }; }
+    if (!inv || now() - inv.at > INVITE_TTL) { invites.delete(from); emit('invites'); return { ok: false, error: 'La invitación ha caducado.' }; }
     invites.delete(from);
     invDoc(from).delete().catch(() => {});
     emit('invites');
@@ -465,7 +484,7 @@ G.Social = (() => {
    */
   function publishProfile(force = false) {
     if (!me || !fb) return;
-    if (!force && Date.now() - pubAt < 30 * 60 * 1000) return;     // como mucho cada 30 min
+    if (!force && Date.now() - pubAt < 2 * 3600 * 1000) return;    // como mucho cada 2 h (era 30 min)
     clearTimeout(pubT);
     pubT = setTimeout(() => {
       if (!me || !fb) return;
@@ -483,6 +502,18 @@ G.Social = (() => {
     }, 800);
   }
 
+  /** El perfil de otro jugador, limpio (ver G.U.int / str): sólo lo que el juego sabe pintar. */
+  function cleanProfile(d) {
+    const U = G.U, b = d.best || {};
+    return {
+      name: U.str(d.name, 24), title: U.str(d.title, 40),
+      favs: U.list(d.favs, 3).filter(f => f && G.DEX_BY[U.int(f.dex)]).map(f => ({ dex: U.int(f.dex), shiny: f.shiny === true })),
+      best: { solo: U.int(b.solo, 86400), group: U.int(b.group, 86400), level: U.int(b.level, 999), bosses: U.int(b.bosses, 1e9),
+              legends: U.int(b.legends, 999), kills: U.int(b.kills, 1e12), medals: U.int(b.medals, 999) },
+      medals: U.list(d.medals, 8).map(x => U.str(x, 40))
+    };
+  }
+
   /** El perfil público de otro jugador. */
   const profCache = new Map();
   async function getProfile(other) {
@@ -492,7 +523,7 @@ G.Social = (() => {
     const c = profCache.get(other);
     if (c && Date.now() - c.at < 10 * 60 * 1000) return c.v;     // lo leído vale 10 min
     const d = await fb.fs.collection('profiles').doc(other).get().catch(() => null);
-    const v = d && d.exists ? d.data() : null;
+    const v = d && d.exists ? cleanProfile(d.data()) : null;
     profCache.set(other, { at: Date.now(), v });
     return v;
   }
@@ -511,6 +542,8 @@ G.Social = (() => {
     get invites() { return [...invites.values()]; },
     get room() { return room; },
     get uid() { return uid; },
+    /** La hora real (corrige el reloj del aparato si va desfasado). */
+    now,
     VALID, MAX_PLAYERS
   };
 })();

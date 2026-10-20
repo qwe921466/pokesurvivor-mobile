@@ -64,6 +64,12 @@ G.Game = (() => {
     }
     checkOrientation();
   }
+  let resizeTs = [];
+  function resizeSoon() {
+    resize();
+    resizeTs.forEach(clearTimeout);
+    resizeTs = [100, 350, 800].map(ms => setTimeout(resize, ms));
+  }
 
   /** Móvil en vertical: aviso de girarlo (y pausa). */
   function checkOrientation() {
@@ -212,6 +218,8 @@ G.Game = (() => {
       bankTickets();
     },
     levelStart(level) {
+      // (Si tenías abierta la elección de objeto, vuelve al terminar: afterLevelUp.)
+      if (state === 'choice' && openItem && G.Coop.active) G.Coop.holdEnd();
       state = 'levelup';
       G.UI.hide('scr-pause');
       G.Audio.sfx('levelup');
@@ -222,7 +230,13 @@ G.Game = (() => {
       }, true);
     },
     waiting(names) { G.RunUI.setWaiting(names); },
-    resume() { G.RunUI.closeLevelUp(); if (state === 'levelup') state = 'playing'; },
+    resume() {
+      G.RunUI.closeLevelUp();
+      if (state === 'levelup') { state = holdBy.length ? 'held' : 'playing'; afterLevelUp(); }
+    },
+    /** ¿Estás eligiendo algo que para la partida (objeto o vínculo)? */
+    choosing() { return state === 'choice'; },
+    inLevelUp() { return state === 'levelup'; },
     shiny(dex) { G.onShinyCaught({ dex, name: (G.DEX_BY[dex] || {}).name || '' }); },
     over(d) {
       if (d) Object.assign(pl, { kills: d.ki, bosses: d.bo, coins: d.co, level: Math.max(pl.level, d.lv || 1), t1: d.t1 || pl.t1, t10: d.t10 || pl.t10 });
@@ -242,6 +256,7 @@ G.Game = (() => {
         if (pl && pl.bonds > 0) offerBond(true);      // si tú también tienes vínculo, eliges a la vez
         const others = holdBy.filter(n => n !== (G.Social.me && G.Social.me.name) && n !== 'Tú');
         if (!mine && others.length) G.Spawner.say('Pausa: ' + others.join(', ') + ' ' + (others.length > 1 ? 'están eligiendo…' : 'está eligiendo…'), 999, true);
+        else if (!others.length) G.Spawner.say(awayBy ? awayText() : '', awayBy ? 999 : 0, true);   // sólo tú: sin aviso viejo
       } else {
         if (state === 'held' && !awayBy) state = 'playing';
         G.Spawner.say(awayBy ? awayText() : '', awayBy ? 999 : 0, true);
@@ -309,6 +324,8 @@ G.Game = (() => {
     save.coins += coins;
     bankTickets(false);
     save.stats.runs++;
+    save.pused = save.pused || {};
+    save.pused[pl.dex] = (+save.pused[pl.dex] || 0) + 1;     // para "más usados" en la colección
     save.stats.totalKills += pl.kills;
     save.stats.bestTime = Math.max(save.stats.bestTime, Math.floor(time));
     if (coop) save.stats.bestGroupTime = Math.max(save.stats.bestGroupTime || 0, Math.floor(time));
@@ -319,8 +336,9 @@ G.Game = (() => {
     G.Judgment.reset();
     G.Progress.event('runEnd', { time, level: pl.level, coins: pl.coins, types: pl.mon.types, group: coop });
     G.Progress.checkAch();
-    // A la nube: un récord, enseguida; si no, al acabar la partida (como mucho cada 20 min).
-    G.DB.commit(record ? true : 'run');
+    // A la nube al acabar la partida (como mucho cada 30 min); si la marca entra
+    // en un top (hoy, semana o mes), enseguida (abajo, tras subirla al ranking).
+    G.DB.commit('run');
     if (G.Social.me) G.Social.publishProfile();
 
     // Ranking: en solitario cada uno lo suyo; en grupo lo sube el anfitrión.
@@ -417,19 +435,42 @@ G.Game = (() => {
 
   const PICK_SFX = { xp: 'xp', xpBig: 'xp', coin: 'coin', heal: 'heal', bomb: 'break', magnet: 'confirm', ticket: 'shiny', ticket10: 'legend', item: 'legend' };
 
+  /*
+   * Cooperativo: la elección de objeto y las cartas de nivel no pueden taparse.
+   * Si llega un objeto con las cartas abiertas, espera a que elijas carta; y si
+   * las cartas llegan con la elección de objeto abierta, ésta vuelve a salir al
+   * terminar. (Antes una cerraba la otra, nadie podía terminar de elegir y la
+   * partida se quedaba parada para todos.)
+   */
+  let openItem = null;           // { cur, next, take } elección de objeto sin terminar
+  const laterItems = [];         // objetos recogidos con las cartas de nivel abiertas
+  function afterLevelUp() {
+    if (state !== 'playing' && state !== 'held') return;
+    if (openItem && !G.UI.isOpen('scr-item')) {
+      const o = openItem;
+      if (o.mine) { state = 'choice'; if (G.Coop.active) G.Coop.holdStart(); }
+      G.RunUI.showItemChoice(o.cur, o.next, o.take);
+      return;
+    }
+    if (laterItems.length) offerItem(laterItems.shift());
+  }
+
   /** Has cogido un objeto: si no llevas ninguno te lo pones; si no, eliges. */
   function offerItem(id) {
     if (!pl || !G.Items.BY[id]) return;
+    if (state === 'levelup' || G.UI.isOpen('scr-levelup')) { laterItems.push(id); return; }
     let mine = false;            // esta elección es la que ha parado el juego
     const take = got => {
+      openItem = null;
       if (got !== pl.item) {
         pl.equip(got);
         G.Spawner.say('¡Llevas ' + G.Items.BY[got].name + '!', 2.6, true);
         G.Progress.event('item', { id: got });
       }
-      if (!mine) return;
+      if (!mine) { afterLevelUp(); return; }
       if (state === 'choice') state = holdBy.length ? 'held' : 'playing';
       if (G.Coop.active) G.Coop.holdEnd();
+      afterLevelUp();
     };
     if (!pl.item) { take(id); return; }
     if (pl.item === id) { G.Spawner.say('Ya llevas ' + G.Items.BY[id].name, 2, true); return; }
@@ -440,6 +481,7 @@ G.Game = (() => {
       state = 'choice';
       if (G.Coop.active) G.Coop.holdStart();
     }
+    openItem = { cur: pl.item, next: id, take, get mine() { return mine; } };
     G.RunUI.showItemChoice(pl.item, id, take);
   }
 
@@ -575,6 +617,7 @@ G.Game = (() => {
     if (fpsAcc >= 0.5) { fpsShown = Math.round(fpsN / fpsAcc); fpsAcc = 0; fpsN = 0; }
     frameDt = state === 'playing' ? dt : 0;
 
+    G.Pad.poll(real);
     handleKeys();
 
     if (state === 'playing') update(dt);
@@ -702,6 +745,33 @@ G.Game = (() => {
     }
   }
 
+  /*
+   * Apuntar a mano: una mira donde está el ratón (y el cursor en cruz), o
+   * delante de tu Pokémon si apuntas con el stick derecho.
+   */
+  function drawAimMark() {
+    const on = state === 'playing' && pl && pl.manualAim && !G.Judgment.cinematic;
+    const cur = on && !G.Pad.aim() ? 'crosshair' : '';
+    if (cv.style.cursor !== cur) cv.style.cursor = cur;
+    if (!on) return;
+    let x, y;
+    if (G.Pad.aim()) {
+      const k = G.Camera.scale;
+      x = (pl.x - G.Camera.left() + Math.cos(pl.aim) * 90) * k;
+      y = (pl.y - G.LIFT * 0.5 - G.Camera.top() + Math.sin(pl.aim) * 90) * k;
+    } else ({ x, y } = G.Input.mouse());
+    ctx.save();
+    ctx.lineCap = 'round';
+    for (const [col, lw] of [['rgba(0,0,0,.65)', 4], ['#ffe9a8', 1.6]]) {
+      ctx.strokeStyle = col; ctx.lineWidth = lw;
+      ctx.beginPath(); ctx.arc(x, y, 9, 0, 6.2832); ctx.stroke();
+      ctx.beginPath();
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { ctx.moveTo(x + dx * 5, y + dy * 5); ctx.lineTo(x + dx * 14, y + dy * 14); }
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
   function render() {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, w, h);
@@ -731,6 +801,7 @@ G.Game = (() => {
     if (!G.Judgment.cinematic) G.HUD.draw(ctx, w, h, pl, st);
     G.Judgment.drawOverlay(ctx, w, h);
     G.Touch.draw(ctx);
+    drawAimMark();
     if (G.Settings.get('fps')) {
       ctx.save();
       ctx.font = '700 11px Pixelify, monospace';
@@ -853,7 +924,7 @@ G.Game = (() => {
     quit() { if (state !== 'ui' && state !== 'over') quitRun(); },
     /** Para grabar vídeos: abre las cartas de subir de nivel. */
     debugLevelUp() { tampered = true; pl.level++; pendingLevels++; },
-    toUI() { state = 'ui'; Backdrop.restore(); },
+    toUI() { state = 'ui'; if (cv) cv.style.cursor = ''; Backdrop.restore(); },
     get state() { return state; }, get player() { return pl; }, st
   };
 })();
@@ -907,7 +978,7 @@ G.Flow = {
     if (G.Game.state !== 'ui') G.Game.toUI();
     G.Audio.music('village');
     G.MenuUI.open();
-    G.LoginUI.offerRecovery();
+    if (!G.LoginUI.updateNotices()) G.LoginUI.offerRecovery();
   },
   /** Al cerrar el resumen: a la sala si sigues en una, si no al menú. */
   afterRun() {

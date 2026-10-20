@@ -5,7 +5,9 @@
 G.DB = (() => {
   const PREFIX = 'pokesurvivor.mobile.';
   const K_ACC = PREFIX + 'accounts', K_SES = PREFIX + 'session', K_SAVE = PREFIX + 'save.';
-  const VERSION = 3, START_COINS = 999999;
+  // v4 protects the new fields from older cloud clients that only accept v1–v3.
+  const VERSION = 4, START_COINS = 999999;
+  const REFILL = Object.freeze({ coins: 999999999, t1: 999999, t10: 999999 });
   const VALID = /^[A-Za-z0-9_ñÑáéíóúÁÉÍÓÚ]{3,16}$/;
   let user = null, key = null, save = null, guest = false, storageOk = true, stale = false;
   const listeners = new Set(), leaveHooks = [];
@@ -36,6 +38,9 @@ G.DB = (() => {
       personality: null,      // { trait, scores }
       upgrades: {},           // (antiguo) mejoras de la cuenta; ahora van por Pokémon
       pupg: {},               // dex -> { id -> nivel }: mejoras de cada Pokémon
+      dfav: {},               // collection favorites: signed timestamp
+      pused: {},              // completed runs with each Pokémon
+      pstart: {},             // selected starting move for each Pokémon
       tickets: { t1: 999, t10: 999 },   // tickets del gacha (x1 y x10)
       pity: {},               // generación del banner -> tiradas sin ★5
       legends: {},            // dex -> fecha: legendarios vencidos en grietas
@@ -82,8 +87,18 @@ G.DB = (() => {
     s.coins = n(s.coins);
     s.tickets.t1 = n(s.tickets.t1);
     s.tickets.t10 = n(s.tickets.t10);
-    if (G.DEX_BY) for (const coll of ['owned', 'shiny']) {
+    if (G.DEX_BY) for (const coll of ['owned', 'shiny', 'dfav', 'pused', 'pstart']) {
       for (const d of Object.keys(s[coll] || {})) if (!G.DEX_BY[d]) delete s[coll][d];
+    }
+    for (const coll of ['dfav', 'pused']) {
+      if (!s[coll] || typeof s[coll] !== 'object' || Array.isArray(s[coll])) s[coll] = {};
+      for (const d of Object.keys(s[coll])) {
+        if (!Number.isSafeInteger(s[coll][d]) || (coll === 'pused' && s[coll][d] < 0)) delete s[coll][d];
+      }
+    }
+    if (!s.pstart || typeof s.pstart !== 'object' || Array.isArray(s.pstart)) s.pstart = {};
+    for (const d of Object.keys(s.pstart)) {
+      if (typeof s.pstart[d] !== 'string' || (G.Moves && !G.Moves.BY_ID[s.pstart[d]])) delete s.pstart[d];
     }
     // Atajos: 4 huecos con un movimiento que exista (o null), sin repetir.
     if (s.pbind && typeof s.pbind === 'object') {
@@ -303,6 +318,23 @@ G.DB = (() => {
   function ownsShiny(dex) { return !!(save && save.shiny[dex]); }
   function grantShiny(dex, from) { grant(dex, from); if (ownsShiny(dex)) return false; save.shiny[dex] = { at: Date.now(), from }; return true; }
   function upgradesOf(dex) { if (!save) return {}; return save.pupg[dex] || (save.pupg[dex] = {}); }
+  function isFav(dex) { return !!(save && save.dfav && save.dfav[dex] > 0); }
+  function setFav(dex, on) {
+    if (!save || !G.DEX_BY[dex]) return;
+    save.dfav[dex] = on ? Date.now() : -Date.now(); commit();
+  }
+  function refillResources() {
+    if (!save || !key || guest) throw new Error('請先登入本機或雲端帳號，再補滿資源。');
+    if (stale) throw new Error('這個視窗的存檔已過期，請重新載入。');
+    if (G.Game?.state && !['ui', 'over'].includes(G.Game.state)) throw new Error('請先結束戰鬥，再補滿資源。');
+    if (G.Cloud?.conflict) throw new Error('請先解決雲端存檔衝突，再補滿資源。');
+    // Top up only. Never reduce earned currency, reset collection, or replay on boot.
+    save.coins = Math.max(save.coins, REFILL.coins);
+    save.tickets.t1 = Math.max(save.tickets.t1, REFILL.t1);
+    save.tickets.t10 = Math.max(save.tickets.t10, REFILL.t10);
+    if (!commit()) throw new Error('資源尚未成功儲存，請匯出備份並確認儲存空間。');
+    return { coins: save.coins, ...save.tickets };
+  }
   function setName(n) { if (VALID.test(n) && save) { save.name = n; commit(); } }
   // Block stale-tab writes so two open windows cannot silently roll back progress.
   addEventListener('storage', e => {
@@ -315,7 +347,7 @@ G.DB = (() => {
   document.addEventListener('visibilitychange', () => { if (document.hidden) commit(); });
   const unavailable = async () => ({ ok: false, error: '本機版停用線上帳號功能。' });
   return { ready, register, login, playAsGuest, logout, deleteAccount, commit, exportSave, previewImport, importSave,
-    owns, grant, ownsShiny, grantShiny, upgradesOf, setName, useCloud, validateSave, newSave,
+    owns, grant, ownsShiny, grantShiny, upgradesOf, isFav, setFav, refillResources, REFILL, setName, useCloud, validateSave, newSave,
     get isStale() { return stale; },
     get cloudUid() { return key?.startsWith("@cloud:") ? key.slice(7) : null; },
     loginWithGoogle: unavailable, linkGoogle: unavailable, flush: async () => commit(),

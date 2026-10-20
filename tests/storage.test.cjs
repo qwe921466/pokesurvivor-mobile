@@ -12,7 +12,7 @@ function boot(data = new Map(), fail = () => false) {
   const context={console,TextEncoder,Uint8Array,crypto:webcrypto,structuredClone,Blob,CustomEvent:class {constructor(type,o){this.type=type;this.detail=o?.detail}},localStorage:storage,
     addEventListener:(t,f)=>events[t]=f,document:{addEventListener(){}},G:{},dispatchEvent:e=>warnings.push(e)};
   context.window=context;vm.createContext(context);
-  for(const file of ['js/core/util.js','js/data/pokedex.js','js/data/sprites-meta.js','js/data/upgrades.js','js/core/db.js','js/systems/gacha.js']) vm.runInContext(fs.readFileSync(path.join(ROOT,file),'utf8'),context);
+  for(const file of ['js/core/util.js','js/data/pokedex.js','js/data/sprites-meta.js','js/data/upgrades.js','js/data/moves.js','js/core/db.js','js/systems/gacha.js']) vm.runInContext(fs.readFileSync(path.join(ROOT,file),'utf8'),context);
   context.G.Sprites={hasShiny:d=>!!context.G.SPRITE_META[d]?.sh};
   return {G:context.G,data,warnings,events};
 }
@@ -55,4 +55,29 @@ test('corrupt primary recovers previous snapshot; corrupt only copy is never res
 test('stale window cannot overwrite another window; local mode has no Firebase handle',async()=>{
  const a=boot();await a.G.DB.register('Tester','testpass');a.events.storage({key:SAVE});a.G.DB.save.coins=2;assert.equal(a.G.DB.commit(),false);assert.equal(JSON.parse(a.data.get(SAVE)).coins,999999);
  assert.equal(a.G.DB.online,false);assert.equal(a.G.DB.fb,null);assert.equal(a.G.DB.mode,'local');
+});
+
+test('v3 saves migrate without changing balances or collection; new favorites and starting moves survive export and reload',async()=>{
+ const a=boot();await a.G.DB.register('Tester','testpass');a.G.DB.grant(1,'starter');
+ let legacy=plain(a.G.DB.save);legacy.v=3;legacy.coins=17;legacy.tickets={t1:2,t10:3};legacy.pupg={1:{hp:3}};
+ delete legacy.dfav;delete legacy.pused;delete legacy.pstart;a.data.set(SAVE,JSON.stringify(legacy));
+ const b=boot(a.data);assert.equal(await b.G.DB.ready(),true);const s=b.G.DB.save;
+ assert.equal(s.v,4);assert.equal(s.coins,17);assert.deepEqual(plain(s.tickets),{t1:2,t10:3});assert.deepEqual(plain(s.owned),legacy.owned);assert.deepEqual(plain(s.pupg),legacy.pupg);
+ b.G.DB.setFav(1,true);s.pused[1]=8;s.pstart[1]='vine-whip';s.pupg[1].start=1;b.G.DB.commit();
+ const c=boot(a.data);await c.G.DB.ready();const exported=JSON.parse(c.G.DB.exportSave()).save;
+ assert.equal(c.G.DB.isFav(1),true);assert.equal(exported.pused[1],8);assert.equal(exported.pstart[1],'vine-whip');assert.equal(exported.pupg[1].start,1);
+});
+test('refill persists for an existing account, normal gacha spending stays spent, and higher balances are never reduced',async()=>{
+ const a=boot();await a.G.DB.register('Tester','testpass');a.G.DB.grant(1,'starter');a.G.DB.save.pupg[1]={hp:3};
+ const originalOwned=plain(a.G.DB.save.owned),earned=a.G.DB.save.stats.coinsEarned;
+ a.G.DB.refillResources();assert.equal(a.G.DB.save.coins,999999999);assert.deepEqual(plain(a.G.DB.save.tickets),{t1:999999,t10:999999});
+ assert.deepEqual(plain(a.G.DB.save.owned),originalOwned);assert.equal(a.G.DB.save.pupg[1].hp,3);assert.equal(a.G.DB.save.stats.coinsEarned,earned);
+ a.G.Gacha.pull(a.G.DB.save,1,1,'t1');a.G.Gacha.pull(a.G.DB.save,10,1,'t10');a.G.DB.save.coins-=80;a.G.DB.commit();
+ const coins=a.G.DB.save.coins,b=boot(a.data);await b.G.DB.ready();assert.equal(b.G.DB.save.coins,coins);assert.deepEqual(plain(b.G.DB.save.tickets),{t1:999998,t10:999998});
+ b.G.DB.refillResources();assert.equal(b.G.DB.save.tickets.t1,999999);b.G.DB.save.coins=1000000500;b.G.DB.save.tickets.t1=1000005;b.G.DB.refillResources();assert.equal(b.G.DB.save.coins,1000000500);assert.equal(b.G.DB.save.tickets.t1,1000005);
+});
+test('refill refuses guests, stale windows, active battles and unresolved cloud conflicts',async()=>{
+ const a=boot();a.G.DB.playAsGuest();assert.throws(()=>a.G.DB.refillResources());await a.G.DB.register('Tester','testpass');
+ a.G.Game={state:'playing'};assert.throws(()=>a.G.DB.refillResources());a.G.Game.state='ui';a.G.Cloud={conflict:{}};assert.throws(()=>a.G.DB.refillResources());a.G.Cloud.conflict=null;
+ a.events.storage({key:SAVE});assert.throws(()=>a.G.DB.refillResources());assert.equal(a.G.DB.save.coins,999999);
 });

@@ -148,7 +148,7 @@ G.Cloud = (() => {
   }
   const rankKey = () => 'pokesurvivor.mobile.rank.' + uid;
   function completedRun(mark) {
-    if (!uid || uid !== G.DB.cloudUid || !Number.isInteger(mark.t) || mark.t < 0 || mark.t > 2100) return;
+    if (!uid || uid !== G.DB.cloudUid || !Number.isInteger(mark.t) || mark.t < 0 || mark.t > 3600) return;
     try {
       const old = JSON.parse(localStorage.getItem(rankKey()) || 'null');
       if (!old || mark.t > old.time) {

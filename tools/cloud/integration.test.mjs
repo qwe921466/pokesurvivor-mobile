@@ -18,7 +18,7 @@ function boot(storage=new Map()) {
  addEventListener:(t,f)=>events[t]=f,dispatchEvent(){},document:{hidden:false,addEventListener(){}},
  G:{CloudSDK:sdk,CLOUD_CONFIG:{projectId:'demo-pokesurvivor',apiKey:'fake-api-key',emulator:true}}};
  ctx.window=ctx;vm.createContext(ctx);
- for(const p of ['js/core/util.js','js/data/pokedex.js','js/data/sprites-meta.js','js/data/upgrades.js','js/core/db.js','js/systems/gacha.js','js/core/cloud-sync.js','js/core/cloud.js'])vm.runInContext(fs.readFileSync(p,'utf8'),ctx);
+ for(const p of ['js/core/util.js','js/data/pokedex.js','js/data/sprites-meta.js','js/data/upgrades.js','js/data/moves.js','js/core/db.js','js/systems/gacha.js','js/core/cloud-sync.js','js/core/cloud.js'])vm.runInContext(fs.readFileSync(p,'utf8'),ctx);
  ctx.G.Sprites={hasShiny:d=>!!ctx.G.SPRITE_META[d]?.sh};
  const result={G:ctx.G,storage,events,timers,get app(){return app}};devices.push(result);return result;
 }
@@ -43,6 +43,13 @@ test('cloud exports omit Firebase credentials and rankings contain only public s
  const exported=a.G.DB.exportSave();assert.ok(!/idToken|refreshToken|apiKey|password|email/.test(exported));
  a.G.Cloud.completedRun({t:65,lv:4,kills:20,dex:1,shiny:false});await new Promise(ok=>setTimeout(ok,800));
  const ranks=await b.G.Cloud.rankings();const me=ranks.find(r=>r.mine);assert.ok(me);assert.equal(me.time,65);assert.equal(me.name,'CloudTester');assert.ok(!Object.hasOwn(me,'email'));
+});
+test('refill and v4 fields sync to a second device, and post-update runs beyond 35 minutes can rank',async()=>{
+ a.G.DB.refillResources();a.G.DB.setFav(1,true);a.G.DB.save.pstart[1]='vine-whip';a.G.DB.save.pused[1]=7;a.G.DB.save.pupg[1]={start:1};a.G.DB.commit();
+ assert.equal(await a.G.Cloud.sync(),true);assert.equal(await b.G.Cloud.sync(true),true);
+ assert.equal(b.G.DB.save.v,4);assert.equal(b.G.DB.save.coins,999999999);assert.equal(b.G.DB.save.tickets.t1,999999);assert.equal(b.G.DB.isFav(1),true);assert.equal(b.G.DB.save.pstart[1],'vine-whip');assert.equal(b.G.DB.save.pused[1],7);assert.equal(b.G.DB.save.pupg[1].start,1);
+ b.G.Gacha.pull(b.G.DB.save,10,1,'t10');b.G.DB.commit();await b.G.Cloud.sync();await a.G.Cloud.sync(true);assert.equal(a.G.DB.save.tickets.t10,999998);
+ a.G.Cloud.completedRun({t:2401,lv:50,kills:800,dex:1,shiny:false});await new Promise(ok=>setTimeout(ok,800));assert.equal((await b.G.Cloud.rankings()).find(r=>r.mine).time,2401);
 });
 test('signing out retains durable cloud cache and source local account',async()=>{
  await a.G.DB.logout();assert.equal(a.G.DB.loggedIn,false);assert.ok([...a.storage.keys()].some(k=>k.startsWith('pokesurvivor.mobile.cloud.')));assert.equal((await a.G.DB.login('CloudTester','local-pass')).ok,true);assert.equal(a.G.DB.mode,'local');assert.equal(a.G.DB.save.tickets.t1,998);

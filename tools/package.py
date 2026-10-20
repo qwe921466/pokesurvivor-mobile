@@ -8,6 +8,6 @@ if destination.exists(): raise SystemExit('Destination exists: choose a NEW path
 destination.mkdir(parents=True)
 for directory in ['assets','css','js']:
     shutil.copytree(root/directory, destination/directory, ignore=shutil.ignore_patterns('.DS_Store'))
-for name in ['index.html','dev.html','manifest.webmanifest','sw.js','version.json','favicon.ico','.nojekyll','LICENSE','CREDITS.md']:
+for name in ['index.html','dev.html','manifest.webmanifest','sw.js','version.json','favicon.ico','.nojekyll','LICENSE','LICENSE-NONCOMMERCIAL.md','LICENSE-UPSTREAM-MIT.txt','CREDITS.md']:
     shutil.copy2(root/name, destination/name)
 print('Packaged static site:',destination)

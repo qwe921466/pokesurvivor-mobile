@@ -30,6 +30,18 @@
 
 維護測試使用 Node >=24.12、Java 21：`npm ci --prefix tools/cloud`，再執行 `tools/cloud/node_modules/.bin/firebase emulators:exec --project demo-pokesurvivor --only auth,firestore "node --test tools/cloud/rules.test.mjs && node --test tools/cloud/integration.test.mjs"`。正式站點不需要 Node／Java 或本機模擬器。
 
+## 2026-10-20 更新
+
+已整合官方提交 [`018e986f4c12f414dfa84193ee35b2959b1e325c`](https://github.com/JPTER78/pokesurvivor/commit/018e986f4c12f414dfa84193ee35b2959b1e325c)：38 個新招式、物理／特殊攻防、初始招式選擇、收藏搜尋與最愛、戰鬥傷害統計、手動瞄準、手把與自訂觸控配置，以及官方戰鬥修正。精確來源與整合範圍記錄在 `UPSTREAM.json`。
+
+保留本站繁體中文、iPhone 安全區與觸控座標修正、獨立雲端帳號和交易式存檔同步。未啟用官方資料庫、好友、多人模式或官方驗證流程。排行榜保留原成績；時間驗證上限改為 60 分鐘，以支援新版超過 35 分鐘的戰鬥。
+
+存檔格式升為 v4，新增最愛、出戰次數與初始招式；原有資源與收集會保留。**手機和電腦都先更新再切換裝置**。舊版程式遇到新格式會拒絕寫入，以免遺失新增欄位；請關閉舊遊戲視窗後重新開啟。
+
+## 補滿資源
+
+主選單「補滿資源」→ 面板內「補滿資源」：金幣補到 **999,999,999**，單抽券與十連抽券各補到 **999,999**。可重複使用，抽獎及購買仍正常扣除；目前數量更高時不會降低。僅對當前登入的本機或雲端帳號操作，不改其他玩家或官方存檔，也不增加統計中的累積賺取金幣。雲端帳號連網後會同步，切換裝置前請確認已同步。訪客、戰鬥中或尚有存檔衝突時不能補滿。
+
 ## 新帳號與存檔
 
 每個新建立的本機帳號初始資源為：金幣 **999,999**、單抽券 **999**、十連抽券 **999**。`pupg` 是每隻 Pokémon 的升級資料，維持原作邏輯。
@@ -104,13 +116,13 @@ python3 -m http.server 8765 --bind 127.0.0.1
 
 首頁與 `dev.html` 設有 `noindex, nofollow, noimageindex`，不產生 sitemap。遵守這些指令的搜尋引擎應不收錄遊戲頁面。沒有用 robots.txt 阻止爬取，讓搜尋引擎能讀取 noindex。
 
-這不是登入或存取權限控管：知道網址的人仍可開啟；公開 GitHub Repository 本身也可能被搜尋到。不能保證所有搜尋引擎或爬蟲都遵守，遊戲存檔仍只在自己的瀏覽器。參考 [Google noindex 文件](https://developers.google.com/search/docs/crawling-indexing/block-indexing)。
+這不是登入或存取權限控管：知道網址的人仍可開啟；公開 GitHub Repository 本身也可能被搜尋到。不能保證所有搜尋引擎或爬蟲都遵守，本機存檔留在自己的瀏覽器，雲端存檔只能由本人帳號讀寫。參考 [Google noindex 文件](https://developers.google.com/search/docs/crawling-indexing/block-indexing)。
 
 部署工作流程依據 [GitHub Pages 官方自訂工作流程文件](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages)。若只需產生靜態檔案資料夾，執行 `python3 tools/package.py <全新目的資料夾>`；腳本拒絕覆寫既有目的地，且不刪除檔案。
 
 ## 授權與來源
 
-原作程式 MIT、SpriteCollab 圖像 CC BY-NC 4.0、Pixelify Sans 字型 OFL；保留原有 `LICENSE`、`CREDITS.md` 和 `assets/fonts/OFL.txt`。Pokémon 相關商標與角色屬原權利人。本專案是個人、非商業的 fan game 修改版。
+本次官方更新將程式授權改為 PolyForm Noncommercial 1.0.0；保留 `LICENSE`、`LICENSE-NONCOMMERCIAL.md` 及 Required Notice。之前 MIT 版本的聲明另存 `LICENSE-UPSTREAM-MIT.txt`。SpriteCollab 圖像 CC BY-NC 4.0、Pixelify Sans 字型 OFL；保留 `CREDITS.md` 和 `assets/fonts/OFL.txt`。Pokémon 相關商標與角色屬原權利人。本專案是個人、非商業的 fan game 修改版。
 
 觸控座標依畫布實際位置與顯示比例換算；畫布大小透過 ResizeObserver、visualViewport 與主畫面返回事件同步。`tests/touch.test.cjs` 涵蓋下方技能命中、縮放／位移、多指操作、觸控中斷，以及不觸發 window resize 的尺寸變化。實體 iPhone 的系統手勢與主畫面 App 行為仍需實機驗證。
 

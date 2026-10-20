@@ -162,3 +162,13 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 ## Firebase JavaScript SDK
 
 Firebase JS SDK 13.0.0 (Google LLC), Apache License 2.0. The bundled Auth and Firestore modules are built from the pinned npm dependency in `tools/cloud/package-lock.json`. License notices remain in `js/vendor/firebase.js`; the full license is in `js/vendor/LICENSE.firebase.txt`. Source: https://github.com/firebase/firebase-js-sdk .
+
+## Upstream code update — 2026-10-20
+
+Required Notice: Copyright 2026 JPTER78 (https://github.com/JPTER78/pokesurvivor)
+
+Updated from upstream commit `018e986f4c12f414dfa84193ee35b2959b1e325c`.
+The current upstream code is distributed under PolyForm Noncommercial 1.0.0
+(see LICENSE and LICENSE-NONCOMMERCIAL.md). The earlier MIT notice is retained
+in LICENSE-UPSTREAM-MIT.txt. This fork preserves its personal cloud storage,
+iPhone fixes and Traditional Chinese additions and adds a resource refill control.

@@ -38,3 +38,7 @@ assert manifest['scope']=='./' and manifest['start_url']=='./' and manifest['id'
 for icon in manifest['icons']: assert (root/icon['src']).exists()
 assert max(p.stat().st_size for p in root.glob('**/*') if p.is_file() and 'node_modules' not in p.parts) < 100*1024*1024
 print('PASS: JS syntax, relative resources, isolated personal cloud / official backend disabled, manifest, no official bundle/domain, file sizes.')
+
+assert "script-src 'self';" in html
+assert not re.search(r'<script(?![^>]*\bsrc=)[^>]*>', html), 'Inline script bypasses CSP'
+assert not re.search(r'\son(?:click|load|error)=', html), 'Inline event handler bypasses CSP'

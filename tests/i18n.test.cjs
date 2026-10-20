@@ -23,7 +23,7 @@ test('Chinese is the default, explicit language choices survive reload, and save
  a.c.G.I18n.set('unsupported');assert.equal(a.reloads,1);
 });
 test('every existing dictionary entry is covered and keeps the same dynamic placeholders',()=>{
- const catalogs={};const c={G:{I18n:{add:(d,l='en')=>catalogs[l]=d}}};
+ const catalogs={};const c={G:{I18n:{add:(d,l='en',context='')=>{if(!context)Object.assign(catalogs[l] ||= {},d);}}}};
  for(const name of ['lang-en.js','lang-zh-hant.js'])vm.runInNewContext(fs.readFileSync(path.join(root,'js/data',name),'utf8'),c);
  for(const key of Object.keys(catalogs.en)){
   assert.ok(Object.hasOwn(catalogs['zh-Hant'],key),'Missing: '+key);
@@ -48,7 +48,7 @@ test('canvas drawing and measurement use the same Chinese text and player names 
  node.parentElement.closest=()=>null;c.G.I18n.walk(node);assert.equal(node.nodeValue,'炎兔兒');
 });
 test('early loading screen and game select the same default and explicit locales',()=>{
- const html=fs.readFileSync(path.join(root,'index.html'),'utf8');const script=html.match(/<script>\s*(\(function \(\) \{[\s\S]*?)<\/script>/)[1];
+ const html=fs.readFileSync(path.join(root,'index.html'),'utf8');assert.match(html,/js\/core\/mobile-boot\.js/);const script=fs.readFileSync(path.join(root,'js/core/mobile-boot.js'),'utf8');
  for(const lang of [null,'en','es','zh-Hant']){const {c}=boot(lang);const p=[{textContent:''},{textContent:''}];c.document.querySelectorAll=()=>p;vm.runInContext(script,c);assert.equal(c.document.documentElement.lang,c.G.I18n.lang);if(!lang||lang==='zh-Hant')assert.equal(p[1].textContent,'載入中…');}
 });
 test('level labels, region names, duration units and Chinese number formatting are localized',()=>{
@@ -57,4 +57,10 @@ test('level labels, region names, duration units and Chinese number formatting a
 test('historical changelog headings and details are translated',()=>{
  const {c}=boot();vm.runInContext(fs.readFileSync(path.join(root,'js/data/changelog.js'),'utf8'),c);
  for(const item of c.G.CHANGELOG){const texts=[item.title,...item.new||[],...item.chg||[],...item.fix||[]];for(const text of texts)assert.match(c.G.T(text[0]),/\p{Script=Han}/u,text[0]);}
+});
+
+test('upstream context names and raw canvas keep player names separate from move translations',()=>{
+ const {c,calls}=boot();assert.equal(c.G.T('Psíquico','move'),'精神強念');
+ c.G.I18n.rawCanvas(new c.CanvasRenderingContext2D(),'fillText','Scorbunny',0,0);assert.equal(calls.at(-1),'Scorbunny');
+ assert.equal(c.G.T('Movimiento inicial'),'初始招式');assert.match(c.G.T('Hiperrayo'),/\p{Script=Han}/u);
 });

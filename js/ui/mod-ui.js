@@ -4,11 +4,10 @@
  * hacer nada). Se abre con el botón "Moderación" del ranking.
  *
  *   Reportes          marcas reportadas por los jugadores, las más reportadas
- *                     primero: borrar la marca, banear (marca la cuenta: no
- *                     puede volver a subir marcas, y se borra su marca de todas
- *                     las tablas de ahora) o descartar el reporte.
- *   Cuentas marcadas  las que ha marcado el servidor (partida imposible) o el
- *                     admin; se pueden desmarcar (p. ej. un falso positivo).
+ *                     primero: borrar la marca, banear (no puede volver a
+ *                     subir marcas, y se borra su marca de todas las tablas de
+ *                     ahora) o descartar el reporte.
+ *   Baneados          las cuentas baneadas del ranking; se pueden desbanear.
  */
 G.ModUI = (() => {
   const $ = G.UI.$;
@@ -80,7 +79,7 @@ G.ModUI = (() => {
       row.innerHTML = `<span class="pos" title="veces reportada">${g.n}×</span>`;
       row.appendChild(mons);
       row.insertAdjacentHTML('beforeend', `<span class="who"><b translate="no">${g.names.map(esc).join(' · ')}</b>
-          <small>${esc(boardName(g.board))}${info ? ' · Nv. ' + (info.lv || 1) + ' · ' + (info.kills || 0).toLocaleString('es') + ' derrotados' : ' · ya no está en el top 50'}</small>
+          <small>${esc(boardName(g.board))}${info ? ' · Nv. ' + (info.lv || 1) + ' · ' + (info.kills || 0).toLocaleString(G.I18n.locale) + ' derrotados' : ' · ya no está en el top 50'}</small>
           ${sus ? '<small class="mod-warn">Más de 33 min: casi imposible con la Sentencia de Arceus</small>' : ''}</span>
         <span class="time${sus ? ' mod-warn' : ''}">${fmt(t)}</span>`);
       const acts = document.createElement('span');
@@ -113,16 +112,16 @@ G.ModUI = (() => {
 
   async function renderMarked(list) {
     const accs = await G.Ranking.markedAccounts();
-    list.innerHTML = accs.length ? '' : '<p class="sub">No hay cuentas marcadas.</p>';
+    list.innerHTML = accs.length ? '' : '<p class="sub">No hay cuentas baneadas.</p>';
     for (const a of accs) {
       const row = document.createElement('div');
       row.className = 'rk-row mod-row';
       row.innerHTML = `<span class="pos"></span>
-        <span class="who"><b translate="no">${esc(a.name)}</b><small translate="no">${a.coins.toLocaleString('es')} monedas · ${a.t1} tickets · ${a.t10} ×10 · ${a.owned} Pokémon · ${esc(a.uid)}</small></span>`;
+        <span class="who"><b translate="no">${esc(a.name)}</b><small translate="no">${esc(G.I18n.f('{x} monedas · {x} tickets · {x} ×10 · {x} Pokémon', a.coins.toLocaleString(G.I18n.locale), a.t1, a.t10, a.owned))} · ${esc(a.uid)}</small></span>`;
       const acts = document.createElement('span');
       acts.className = 'mod-acts';
-      acts.append(btn('Desmarcar', 'ghost', async () => {
-        try { await G.Ranking.setMarked(a.uid, false); G.UI.toast('Desmarcada'); row.remove(); }
+      acts.append(btn('Desbanear', 'ghost', async () => {
+        try { await G.Ranking.setMarked(a.uid, false); G.UI.toast('Desbaneada'); row.remove(); }
         catch (e) { G.UI.toast('No se pudo: ' + (e.code || e.message)); }
       }));
       row.appendChild(acts);

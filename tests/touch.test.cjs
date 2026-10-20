@@ -106,3 +106,12 @@ test('visual viewport changes and returning from the home screen remeasure the c
   canvas.clientHeight=350;viewport.emit('resize');assert.equal(canvas.height,525);
   canvas.clientHeight=393;win.emit('pageshow');assert.equal(canvas.height,590);
 });
+
+test('fixed joystick follows scaled canvas coordinates and releases on lost capture',()=>{
+ const {G,canvas}=setup();G.Settings.get=k=>k==='stickMode'?'fixed':k==='pad'?{stick:[0.14,0.72]}:1;
+ canvas.rect={left:59,top:20,width:426,height:196.5};const base=G.Touch.stickBase();
+ canvas.emit('pointerdown',{...finger(0,0),...logicalToClient(canvas,base.x,base.y)});
+ canvas.emit('pointermove',{...finger(0,0),...logicalToClient(canvas,base.x+28,base.y)});
+ assert.equal(G.Touch.stick.fixed,true);assert.equal(G.Touch.stick.ox,base.x);assert.ok(G.Touch.vector()[0]>.99);
+ canvas.emit('lostpointercapture',finger(0,0));assert.equal(G.Touch.vector(),null);
+});

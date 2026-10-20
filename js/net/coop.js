@@ -9,6 +9,11 @@
  * Los invitados ven COPIAS de los enemigos del anfitrión (enemy.remote) y los
  * ataques de los compañeros como "fantasmas" que no hacen daño (ver combat.js).
  *
+ * Quién está eligiendo (objeto o vínculo) y quién ha elegido carta de nivel va
+ * además en CADA envío (no sólo en un aviso suelto): si un aviso se pierde
+ * porque la conexión parpadea, el siguiente envío lo arregla y nadie se queda
+ * esperando a otro para siempre (pasaba en 2026-10).
+ *
  * Mensajes (por net.js, unas 15 veces por segundo; 5 si va por el relé):
  *   invitado -> anfitrión  { k:'f', p:[estado], ev:[eventos] }
  *   anfitrión -> invitado  { k:'f', t, lv, xp, xn, ki, bo, co, p:{uid:[estado]},
@@ -19,11 +24,10 @@
 G.Coop = (() => {
   const ANIMS = ['Idle', 'Walk', 'Attack', 'Shoot', 'Charge', 'Hurt', 'Faint'];
   const COLORS = ['#ffcb3d', '#5fc8ff', '#7ee07a', '#ff8ad8'];
-  // Mensajes por segundo: 15 directo, 4 por el TURN de Cloudflare (se paga por
-  // GB: era 7 y se iban unos 110 GB al día, el 12-10-2026) y 3 por el relé de
-  // la Realtime Database (1 $ el GB: sólo si todo lo demás falla).
-  const RATE_FAST = 1 / 15, RATE_TURN = 1 / 4, RATE_SLOW = 1 / 3;
-  const rateFor = u => (G.Net.slow(u) ? RATE_SLOW : G.Net.viaTurn(u) ? RATE_TURN : RATE_FAST);
+  // Mensajes por segundo: 15 por la conexión directa y 3 por el relé de la
+  // Realtime Database (apagado: 1 $ el GB).
+  const RATE_FAST = 1 / 15, RATE_SLOW = 1 / 3;
+  const rateFor = u => (G.Net.slow(u) ? RATE_SLOW : RATE_FAST);
   const NEAR = 950;                     // radio de enemigos que se mandan a cada uno
 
   let active = false, host = false, me = null, hostUid = null;
@@ -39,6 +43,9 @@ G.Coop = (() => {
   // todo se para para todos. Antes los enemigos se quedaban quietos y los demás
   // seguían jugando con una ventaja enorme.
   let hostAway = false, stalled = false, lastHostAt = 0;
+  // Cartas de nivel: número de la ronda (anfitrión), la última que te ha llegado
+  // y la última que has elegido (invitado). Y el último "quién elige" aplicado.
+  let levelSeq = 0, levelNow = 1, seenSeq = 0, doneSeq = 0, lastHo = '';
   const STALL_MS = 2500;
   let members = [];
 
@@ -64,6 +71,7 @@ G.Coop = (() => {
     mates.clear();
     outEv = []; flushT = 0; waiting = new Set(); holds = new Set();
     hostAway = false; stalled = false; lastHostAt = performance.now();
+    levelSeq = 0; levelNow = 1; seenSeq = 0; doneSeq = 0; lastHo = '';
     cfg.members.forEach((m, i) => {
       const x = (i - (cfg.members.length - 1) / 2) * 34, y = 0;
       if (m.uid === me) { pl.x = x; pl.y = y; pl.uid = me; pl.coopHost = host; pl.tagColor = COLORS[i]; return; }
@@ -71,7 +79,7 @@ G.Coop = (() => {
       const p = new G.Player(mon, {}, !!m.shiny);
       p.remote = true; p.uid = m.uid; p.tag = m.name; p.tagColor = COLORS[i]; p.revLabel = 'Quédate a su lado';
       p.x = x; p.y = y;
-      p.net = { x, y, ang: Math.PI / 2, walk: 0, hp: p.maxHp, maxHp: p.maxHp, dead: 0, mv: G.startMoveOf(mon.dex), ml: 1, mag: 78, aim: Math.PI / 2, rev: 0 };
+      p.net = { x, y, ang: Math.PI / 2, walk: 0, hp: p.maxHp, maxHp: p.maxHp, dead: 0, mv: G.baseStartOf(mon.dex), ml: 1, mag: 78, aim: Math.PI / 2, rev: 0 };
       G.Sprites.preload([mon.dex], 8000, p.shiny);
       mates.set(m.uid, { uid: m.uid, name: m.name, color: COLORS[i], pl: p, connected: true, q: [], flushT: 0, xpMul: 1 });
     });
@@ -126,12 +134,12 @@ G.Coop = (() => {
     const m = g.find(x => x.kind === 'orbit') || g[0];
     return [r1(local.x), r1(local.y), r2(local.moveAngle), local.walking ? 1 : 0, r1(local.hp), r1(local.maxHp),
             local.dead ? 1 : 0, m ? m.id : '', m ? m.lvl : 1, r1(local.magnet), r2(local.aim), r2(local.xpMul),
-            r2(local.reviveT || 0)];
+            r2(local.reviveT || 0), api.choosing && api.choosing() ? 1 : 0, doneSeq];
   }
 
   function readState(a) {
     return { x: a[0], y: a[1], ang: a[2], walk: a[3], hp: a[4], maxHp: a[5], dead: a[6], mv: a[7], ml: a[8],
-             mag: a[9], aim: a[10], xpMul: a[11], rev: a[12] };
+             mag: a[9], aim: a[10], xpMul: a[11], rev: a[12], ch: a[13], ld: a[14] };
   }
 
   // ---------------- envío ----------------
@@ -175,6 +183,9 @@ G.Coop = (() => {
                 p, e: enemyList(m.pl), ev };
     const ja = G.Judgment.netState();       // Arceus en la Sentencia
     if (ja) f.ja = ja;
+    // Siempre: quién está eligiendo y, si hay cartas de nivel, cuáles (ver arriba).
+    f.ho = holdNames();
+    if (waiting.size) f.lu = [levelSeq, levelNow];
     return f;
   }
 
@@ -239,7 +250,7 @@ G.Coop = (() => {
   function onClientFrame(from, msg) {
     const m = mates.get(from);
     if (!m || !m.connected) return;
-    if (msg.p) { m.state = msg.p; m.pl.net = readState(msg.p); m.xpMul = m.pl.net.xpMul || 1; }
+    if (msg.p) { m.state = msg.p; m.pl.net = readState(msg.p); m.xpMul = m.pl.net.xpMul || 1; reconcile(from, m.pl.net); }
     for (const ev of msg.ev || []) {
       switch (ev[0]) {
         case 'h': {
@@ -256,6 +267,7 @@ G.Coop = (() => {
           if (ev[2] === 'b') e.applyBurn(ev[3]);
           else if (ev[2] === 'p') e.applyPoison(ev[3]);
           else if (ev[2] === 's') e.applySlow(ev[3]);
+          else if (ev[2] === 't') e.applyStun(ev[3]);
           break;
         }
         case 'c':
@@ -273,6 +285,14 @@ G.Coop = (() => {
         case 'bye': mateGone(from); break;
       }
     }
+  }
+
+  /** Anfitrión: lo que dice cada envío del invitado manda sobre avisos que se hayan perdido. */
+  function reconcile(from, n) {
+    if (n.ch === undefined) return;                        // versión vieja del juego
+    if (n.ch && !holds.has(from)) holdOn(from);
+    else if (!n.ch && holds.has(from)) holdOff(from);
+    if (waiting.has(from) && n.ld >= levelSeq) picked(from);
   }
 
   // --- en el invitado ---
@@ -293,6 +313,13 @@ G.Coop = (() => {
     if (stalled) { stalled = false; updateAway(); }
     for (const ev of msg.ev || []) applyHostEvent(ev);
     if (msg.ja) G.Judgment.netApply(msg.ja);
+    // Quién elige y las cartas de nivel, aunque se haya perdido algún aviso.
+    if (msg.ho) {
+      const k = msg.ho.join('|');
+      if (k !== lastHo) { lastHo = k; api.hold && api.hold(msg.ho); }
+      if (msg.lu && msg.lu[0] > seenSeq) { seenSeq = msg.lu[0]; api.levelStart(msg.lu[1]); }
+      else if (!msg.lu && api.inLevelUp && api.inLevelUp()) api.resume();
+    }
     api.syncTeam({ time: msg.t, level: msg.lv, xp: msg.xp, xpNext: msg.xn, kills: msg.ki, bosses: msg.bo, coins: msg.co,
                    t1: (msg.tk || [])[0], t10: (msg.tk || [])[1] });
     for (const u in msg.p || {}) {
@@ -325,7 +352,7 @@ G.Coop = (() => {
       case 'hn': { const e = G.EnemyMgr.get(ev[1]); if (e && !e.dead) e.showHurt(ev[2], ev[3]); break; }
       case 'es':
         G.Projectiles.spawn({ x: ev[1], y: ev[2], vx: ev[3], vy: ev[4], dmg: ev[5], r: ev[6], life: ev[7],
-                              friendly: false, color: '#ff7a9e', vis: G.VFX.forType(ev[8]), mtype: ev[8] });
+                              friendly: false, color: '#ff7a9e', vis: G.VFX.forType(ev[8]), mtype: ev[8], cat: ev[9] });
         break;
       case 'c': { const m = mates.get(ev[1]); if (m) G.Combat.ghostCast(m.pl, ev[2], ev[3], ev[4], ev[5]); break; }
       case 'item': api.item(ev[1]); break;
@@ -340,10 +367,10 @@ G.Coop = (() => {
       case 'pb': G.World.breakAt(ev[1], ev[2]); break;
       case 'say': G.Spawner.say(ev[1], ev[2]); break;
       case 'heal': if (!local.dead) { local.heal(local.maxHp * ev[1]); G.FX.ring(local.x, local.y, 6, 60, '#5fe08a', 0.4, 3); } break;
-      case 'lu': api.levelStart(ev[1]); break;
+      case 'lu': if (!ev[2] || ev[2] > seenSeq) { seenSeq = ev[2] || seenSeq; api.levelStart(ev[1]); } break;
       case 'lw': api.waiting(ev[1]); break;
       case 'lr': api.resume(); break;
-      case 'hp': api.hold && api.hold(ev[1]); break;
+      case 'hp': lastHo = (ev[1] || []).join('|'); api.hold && api.hold(ev[1]); break;
       case 'ha': hostAway = !!ev[1]; updateAway(); break;
       case 'sh': api.shiny(ev[1]); break;
       case 'ov': { const cb = api.over; const d = ev[1]; end(); cb(d); break; }
@@ -375,7 +402,7 @@ G.Coop = (() => {
     emit(['ne', e.id, e.dex, r1(e.x), r1(e.y), e.boss ? 1 : 0, e.shiny ? 1 : 0, Math.ceil(e.maxHp), r2(e.dmg), e.behavior]);
   }
   function enemyGone(e, died) { emit([died ? 'ed' : 'eg', e.id]); }
-  function enemyShot(p, type) { emit(['es', r1(p.x), r1(p.y), r1(p.vx), r1(p.vy), r2(p.dmg), p.r, p.life, type]); }
+  function enemyShot(p, type) { emit(['es', r1(p.x), r1(p.y), r1(p.vx), r1(p.vy), r2(p.dmg), p.r, p.life, type, p.cat]); }
   function pickupAdded(o) { emit(['pk', o.id, o.kind, r1(o.x), r1(o.y), o.value]); }
   function pickupGone(id) { emit(['pc', id]); }
   function say(text, secs) { emit(['say', text, secs]); }
@@ -403,7 +430,8 @@ G.Coop = (() => {
   function levelStart(level) {
     waiting = new Set([me]);
     for (const m of mates.values()) if (m.connected) waiting.add(m.uid);
-    emit(['lu', level]);
+    levelSeq++; levelNow = level;
+    emit(['lu', level, levelSeq]);
     flushAll();
     api.levelStart(level);
     sendWaiting();
@@ -453,7 +481,7 @@ G.Coop = (() => {
   /** Has elegido tu carta. */
   function localPicked() {
     if (host) picked(me);
-    else { outEv.push(['lp']); flushClient(true); }
+    else { doneSeq = seenSeq; outEv.push(['lp']); flushClient(true); }
   }
 
   /** Anfitrión: se acabó para todos. */

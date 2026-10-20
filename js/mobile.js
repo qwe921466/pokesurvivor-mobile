@@ -8,6 +8,8 @@
     <h2 id="backup-title">存檔與備份</h2><button class="btn gold mobile-cloud-open" type="button">雲端帳號與同步</button>
     <p class="note">Pokémon、抽獎券、金幣、升級及已結算成果會保存在此裝置；雲端帳號會在連網時同步。切換裝置前請確認「已同步」。關閉後不會補滿初始資源。進行中的戰鬥不支援關閉後從原地繼續。</p>
     <p id="mobile-save-info" class="sub"></p>
+    <button class="btn gold" id="mobile-refill" type="button">補滿資源</button>
+    <p class="note">金幣補到 999,999,999；單抽券、十連券各補到 999,999。可重複使用，購買與抽獎仍正常扣除。既有資源高於此數量時不會減少。</p>
     <div class="row"><button class="btn gold" id="mobile-export">匯出 JSON 備份</button><button class="btn" id="mobile-import">匯入備份</button></div>
     <input id="mobile-import-file" type="file" accept=".json,application/json" hidden>
     <p id="mobile-backup-status" class="note" role="status" aria-live="polite"></p>
@@ -30,11 +32,28 @@
     $('mobile-save-info').textContent = s ? `${G.DB.guest ? '訪客（不會存檔）' : (G.DB.cloudUid ? '雲端帳號 ' : '本機帳號 ') + G.DB.user} · 金幣 ${s.coins.toLocaleString()} · 單抽券 ${s.tickets.t1} · 十連券 ${s.tickets.t10}` : '請先建立本機帳號；匯入會覆蓋目前登入帳號的進度。';
     $('mobile-export').disabled = !s;
     $('mobile-import').disabled = !s || G.DB.guest;
+    $('mobile-refill').disabled = !s || G.DB.guest || G.DB.isStale;
     $('mobile-backup-status').textContent = warning;
   }
   document.querySelectorAll('.mobile-backup-open').forEach(b => b.onclick = open);
   alert.querySelector('button').onclick = open;
   $('mobile-backup-close').onclick = () => panel.classList.add('hidden');
+  $('mobile-refill').onclick = async () => {
+    const btn = $('mobile-refill'); btn.disabled = true;
+    try {
+      const account = G.DB.cloudUid || G.DB.user;
+      if (G.DB.cloudUid) await G.Cloud.sync(true);
+      if (account !== (G.DB.cloudUid || G.DB.user)) throw new Error('帳號已切換，請重新開啟此面板。');
+      G.DB.refillResources();
+      G.UI.refreshCoins();
+      if (G.DB.cloudUid) await G.Cloud.sync();
+      open();
+      $('mobile-backup-status').textContent = G.DB.cloudUid && G.Cloud.status !== 'ok'
+        ? '資源已補滿並保存在此裝置，雲端尚待同步；請等到「已同步」再換裝置。'
+        : '資源已補滿並儲存。';
+    } catch (e) { $('mobile-backup-status').textContent = e.message; }
+    finally { btn.disabled = !G.DB.save || G.DB.guest || G.DB.isStale; }
+  };
   $('mobile-export').onclick = () => {
     try {
       const text = G.DB.exportSave();

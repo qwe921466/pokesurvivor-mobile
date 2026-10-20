@@ -1,0 +1,25 @@
+{
+  "repository": "https://github.com/JPTER78/pokesurvivor",
+  "commit": "018e986f4c12f414dfa84193ee35b2959b1e325c",
+  "integratedOn": "2026-10-20",
+  "previousSourceVersion": "025032c5a0",
+  "previousPersonalCommit": "e68ac2f63a3ea68578b7ee95be8b743080df895c",
+  "saveVersion": 4,
+  "license": "PolyForm-Noncommercial-1.0.0",
+  "preserved": [
+    "personal cloud accounts and revision-checked sync",
+    "Traditional Chinese",
+    "iPhone safe area, viewport and touch coordinates",
+    "private saves and shared personal leaderboard"
+  ],
+  "excluded": [
+    "official Firebase credentials and backend",
+    "official multiplayer and social service",
+    "official app.min.js, hosting and locale loader"
+  ],
+  "refill": {
+    "coins": 999999999,
+    "tickets.t1": 999999,
+    "tickets.t10": 999999
+  }
+}
