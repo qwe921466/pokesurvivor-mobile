@@ -65,7 +65,14 @@
       }
       if(G.UI.isOpen('scr-lobby'))render();
     });
-    G.Net.onPeer(()=>{if(G.UI.isOpen('scr-lobby'))render();});
+    G.Net.onPeer((uid,mode)=>{
+      const r=G.Social.room;
+      // The battle callback has already settled the guest. Release its membership
+      // so returning from the result cannot strand it in a departed host's room.
+      if(r && !r.isHost && r.state==='playing' && uid===r.host && ['failed','closed'].includes(mode))
+        G.Social.leaveRoom().catch(()=>{});
+      if(G.UI.isOpen('scr-lobby'))render();
+    });
   }
   G.FriendsUI={open};
   G.LobbyUI={open:lobbyOpen,close(){G.UI.hide('scr-lobby');},render};
