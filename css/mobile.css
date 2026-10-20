@@ -45,3 +45,12 @@ input.field { font-size: max(16px, 1em); }
 #mobile-cloud label { display:block; margin-top:10px; }
 #mobile-rank-list .rk-row { gap:8px; flex-wrap:wrap; }
 .sync.conflict { background:#ff6480; }
+
+/* Keep large refill balances on one line in short landscape cloud menus. */
+@media (max-height: 520px) and (max-width: 900px) {
+  #btn-save span, #btn-news span { display: none; }
+  #tickets-pill { white-space: nowrap; flex-shrink: 0; }
+  #user-pill { min-width: 0; flex: 0 1 110px; }
+  .topbar { gap: 4px; }
+  .topbar > .btn { flex-shrink: 0; }
+}
