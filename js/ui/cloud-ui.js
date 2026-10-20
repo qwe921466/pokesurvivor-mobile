@@ -14,7 +14,7 @@ G.CloudUI = (() => {
         <div id="cloud-name-row" class="hidden"><label for="cloud-name">排行榜暱稱（3–16 個英文字母、數字或底線，可與他人同名）</label><input class="field" id="cloud-name" maxlength="16" pattern="[A-Za-z0-9_]{3,16}" autocomplete="nickname"></div>
         <label for="cloud-pass">密碼</label><input class="field" id="cloud-pass" type="password" minlength="8" maxlength="128" autocomplete="current-password" required>
         <label id="cloud-migrate-row" class="note hidden"><input id="cloud-migrate" type="checkbox" checked> 將目前本機進度帶入新雲端存檔（保留本機原檔；已有雲端存檔時優先載入雲端）</label>
-        <p class="note">帳號與存檔由本站專用 Firebase 專案保存；其他玩家只能看見暱稱與排行成績。此修改版排行榜供同版本玩家交流。</p>
+        <p class="note">帳號與存檔由本站專用 Firebase 專案保存；其他玩家可看見暱稱與排行成績；同房玩家也會看見寶可夢與戰鬥狀態。此修改版排行榜供同版本玩家交流。</p>
         <button class="btn gold" id="cloud-submit" type="submit">登入雲端</button>
         <button class="btn ghost" id="cloud-reset" type="button">寄送密碼重設信</button>
       </form>

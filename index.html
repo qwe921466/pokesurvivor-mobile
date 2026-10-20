@@ -3,7 +3,7 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="utf-8">
-<meta name="mobile-build" content="4c9e2a9d2004a70b">
+<meta name="mobile-build" content="604b69694e3c8098">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; media-src 'self' blob:; connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://firestore.googleapis.com; worker-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'">
 <meta name="theme-color" content="#0a1430">
 <meta name="color-scheme" content="dark">
@@ -27,8 +27,8 @@
 <link rel="preload" href="assets/fonts/PixelifyPS-400.ttf" as="font" type="font/ttf" crossorigin>
 <link rel="preload" href="assets/fonts/PixelifyPS-700.ttf" as="font" type="font/ttf" crossorigin>
 
-<link rel="stylesheet" href="css/style.css?v=4c9e2a9d2004a70b">
-<link rel="stylesheet" href="css/mobile.css?v=4c9e2a9d2004a70b">
+<link rel="stylesheet" href="css/style.css?v=604b69694e3c8098">
+<link rel="stylesheet" href="css/mobile.css?v=604b69694e3c8098">
 </head>
 <body>
 
@@ -43,7 +43,7 @@
       <div class="t1">PokéSurvivor</div>
       <div class="t2">Mundo Misterioso</div>
     </div>
-    <p class="login-tag" translate="no">iPhone 個人修改版 · 單人戰鬥<br>雲端帳號可同步手機／電腦，參加共同排行榜。</p>
+    <p class="login-tag" translate="no">iPhone 個人修改版 · 單人／多人合作<br>雲端帳號可同步手機／電腦，參加共同排行榜。</p>
     <button class="btn gold mobile-cloud-open" type="button" translate="no">雲端帳號登入／同步</button><p class="note" translate="no">已有舊存檔：先登入下方本機帳號，再開啟雲端帳號帶入進度。</p>
     <div class="tabs">
       <div class="tab on" data-tab="login">Entrar</div>
@@ -134,7 +134,7 @@
         <button class="menu-item" data-go="gacha">Gacha<small>9 regiones · Pokémon y shinies</small></button>
         <button class="menu-item mobile-backup-open" type="button" translate="no">補滿資源<small>金幣與抽獎券 · 存檔備份</small></button>
         <button class="menu-item" data-go="goals">Misiones<small id="menu-goals-sub">Misiones, logros y perfil</small></button>
-        <button class="menu-item" data-go="friends" disabled title="本機版停用：需要官方後端">Amigos · OFF<small id="menu-friends-sub">Juega en grupo, hasta 4</small></button>
+        <button class="menu-item" data-go="friends">多人合作<small id="menu-friends-sub">Juega en grupo, hasta 4</small></button>
         <button class="menu-item" data-go="rank">Ranking<small translate="no">共用生存時間排行榜</small></button>
         <button class="menu-item mobile-backup-open" type="button" translate="no">存檔與備份<small>匯出／匯入 JSON</small></button>
         <button class="menu-item" data-go="settings">Ajustes<small>Sonido, gráficos, controles y cuenta</small></button>
@@ -242,7 +242,7 @@
     <p translate="no">更新後的原作程式採 PolyForm Noncommercial 1.0.0，僅供非商業使用；授權與作者資訊見 <a href="LICENSE-NONCOMMERCIAL.md">授權條款</a>。</p>
     <h3 translate="no">隱私與存檔</h3>
     <p translate="no">本機帳號只保存在目前瀏覽器。選擇建立／登入雲端帳號後，電子郵件與登入驗證由本站專用 Firebase 專案處理；遊戲存檔僅本人可讀寫。暱稱、寶可夢與排行成績可供已登入玩家查看，電子郵件與完整存檔不公開。未使用原作者的 Firebase 專案，亦未啟用 Google Analytics。</p>
-    <p translate="no">切換裝置前請確認「已同步」。匯出備份不包含密碼、登入憑證或權杖；多人連線尚未啟用。本站修改版問題與雲端資料刪除請洽 <a href="https://github.com/qwe921466/pokesurvivor-mobile/issues" target="_blank" rel="noopener">本站管理者</a>，請勿在公開議題貼密碼或完整存檔。</p>
+    <p translate="no">切換裝置前請確認「已同步」。匯出備份不包含密碼、登入憑證或權杖；多人合作使用本專案房間碼與玩家直接連線。本站修改版問題與雲端資料刪除請洽 <a href="https://github.com/qwe921466/pokesurvivor-mobile/issues" target="_blank" rel="noopener">本站管理者</a>，請勿在公開議題貼密碼或完整存檔。</p>
 <p translate="no">以下按鈕會刪除目前的本機帳號與存檔：</p>
 <div class="row">
       <button class="btn small" id="legal-delete">Borrar mi cuenta y mi partida</button>
@@ -257,7 +257,7 @@
     <p class="boot-ld">Cargando…</p>
   </div>
 </div>
-<script src="js/core/mobile-boot.js?v=4c9e2a9d2004a70b"></script>
+<script src="js/core/mobile-boot.js?v=604b69694e3c8098"></script>
 <div id="tap-start" class="tapstart hidden">
   <div class="boot-in">
     <h1>PokéSurvivor</h1>
@@ -291,33 +291,27 @@
   </div>
 </section>
 
-<!-- ====== Amigos ====== -->
+<!-- ====== Personal cooperative rooms ====== -->
 <section id="scr-friends" class="scr dim hidden">
   <div class="box wide">
-    <div class="row between"><h2>Amigos</h2>
-      <div class="row"><button id="fr-room" class="btn small gold hidden">Ir a la sala</button><button class="btn small ghost" data-back>Volver</button></div></div>
-    <p class="sub" id="fr-me"></p>
-    <form id="fr-add" class="row" autocomplete="off">
-      <input id="fr-name" class="field grow" maxlength="16" spellcheck="false" placeholder="Apodo de tu amigo">
-      <button class="btn gold" type="submit" data-sfx="confirm">Añadir amigo</button>
+    <div class="row between"><h2>多人合作</h2><button class="btn small ghost" data-back>返回</button></div>
+    <p class="sub">2–4 人合作。每人登入自己的雲端帳號，再用房間碼加入。</p>
+    <button id="fr-create" class="btn gold" type="button">建立房間</button>
+    <form id="fr-add" class="row" autocomplete="off" style="margin-top:14px">
+      <input id="fr-name" class="field grow" maxlength="16" spellcheck="false" autocapitalize="characters" aria-label="房間碼" placeholder="輸入 10 位房間碼">
+      <button class="btn gold" type="submit">加入房間</button>
     </form>
-    <p id="fr-msg" class="note"></p>
-    <div id="fr-list" class="fr-list"></div>
+    <p class="note">房間碼有效 2 小時，請只分享給朋友。玩家會看到彼此暱稱與寶可夢；直接連線也可能讓對方取得你的網路 IP。部分網路無法直連，可改用其他 Wi-Fi 或行動網路。</p>
+    <p class="note">無須 Mac 開機。房主使用的手機或電腦需保持遊戲開啟；合作期間各自保留原有資源與存檔。</p>
   </div>
 </section>
-
-<!-- ====== Sala (partida en grupo) ====== -->
 <section id="scr-lobby" class="scr dim hidden">
   <div class="box wide">
-    <div class="row between"><h2>Sala</h2>
-      <div class="row"><button id="lobby-menu" class="btn small ghost">Menú</button><button id="lobby-leave" class="btn small ghost">Salir de la sala</button></div></div>
+    <div class="row between"><h2>合作房間</h2><div class="row"><button id="lobby-menu" class="btn small ghost">選擇寶可夢</button><button id="lobby-leave" class="btn small ghost">離開房間</button></div></div>
+    <div class="row"><b id="lobby-code" translate="no" style="letter-spacing:2px;user-select:all"></b><button id="lobby-copy" class="btn small ghost">複製房間碼</button></div>
     <p class="sub" id="lobby-sub"></p>
     <div id="lobby-members" class="lobby-members"></div>
-    <h3 id="lobby-inv-title" style="margin:14px 0 6px">Invitar amigos</h3>
-    <div id="lobby-invite" class="fr-list"></div>
-    <div class="row" style="margin-top:14px">
-      <button id="lobby-start" class="btn gold grow">Empezar partida</button>
-    </div>
+    <div class="row" style="margin-top:14px"><button id="lobby-start" class="btn gold grow">準備</button><button id="lobby-retry" class="btn ghost hidden">重試連線</button></div>
     <p class="note" id="lobby-note"></p>
   </div>
 </section>
@@ -508,92 +502,92 @@
 
 <!-- datos generados -->
 <!-- scripts:begin -->
-<script defer src="js/core/util.js?v=4c9e2a9d2004a70b"></script>
-<script defer src="js/core/i18n.js?v=4c9e2a9d2004a70b"></script>
-<script defer src="js/data/lang-en.js?v=4c9e2a9d2004a70b"></script>
-<script defer src="js/data/lang-zh-hant.js?v=4c9e2a9d2004a70b"></script>
-<script defer src="js/core/settings.js?v=4c9e2a9d2004a70b"></script>
-<script defer src="js/data/music.js?v=4c9e2a9d2004a70b"></script>
-<script defer src="js/data/pokedex.js?v=4c9e2a9d2004a70b"></script>
-<script defer src="js/data/sprites-meta.js?v=4c9e2a9d2004a70b"></script>
+<script defer src="js/core/util.js?v=604b69694e3c8098"></script>
+<script defer src="js/core/i18n.js?v=604b69694e3c8098"></script>
+<script defer src="js/data/lang-en.js?v=604b69694e3c8098"></script>
+<script defer src="js/data/lang-zh-hant.js?v=604b69694e3c8098"></script>
+<script defer src="js/core/settings.js?v=604b69694e3c8098"></script>
+<script defer src="js/data/music.js?v=604b69694e3c8098"></script>
+<script defer src="js/data/pokedex.js?v=604b69694e3c8098"></script>
+<script defer src="js/data/sprites-meta.js?v=604b69694e3c8098"></script>
 <!-- núcleo -->
-<script defer src="js/core/firebase-config.js?v=4c9e2a9d2004a70b"></script>
-<script defer src="js/core/db.js?v=4c9e2a9d2004a70b"></script>
-<script defer src="js/core/audio.js?v=4c9e2a9d2004a70b"></script>
-<script defer src="js/core/input.js?v=4c9e2a9d2004a70b"></script>
-<script defer src="js/core/touch.js?v=4c9e2a9d2004a70b"></script>
-<script defer src="js/core/gamepad.js?v=4c9e2a9d2004a70b"></script>
-<script defer src="js/core/sprites.js?v=4c9e2a9d2004a70b"></script>
-<script defer src="js/core/camera.js?v=4c9e2a9d2004a70b"></script>
+<script defer src="js/core/firebase-config.js?v=604b69694e3c8098"></script>
+<script defer src="js/core/db.js?v=604b69694e3c8098"></script>
+<script defer src="js/core/audio.js?v=604b69694e3c8098"></script>
+<script defer src="js/core/input.js?v=604b69694e3c8098"></script>
+<script defer src="js/core/touch.js?v=604b69694e3c8098"></script>
+<script defer src="js/core/gamepad.js?v=604b69694e3c8098"></script>
+<script defer src="js/core/sprites.js?v=604b69694e3c8098"></script>
+<script defer src="js/core/camera.js?v=604b69694e3c8098"></script>
 <!-- datos de juego -->
-<script defer src="js/data/moves.js?v=4c9e2a9d2004a70b"></script>
-<script defer src="js/data/types.js?v=4c9e2a9d2004a70b"></script>
-<script defer src="js/data/starters.js?v=4c9e2a9d2004a70b"></script>
-<script defer src="js/data/enemies.js?v=4c9e2a9d2004a70b"></script>
-<script defer src="js/data/upgrades.js?v=4c9e2a9d2004a70b"></script>
-<script defer src="js/data/items.js?v=4c9e2a9d2004a70b"></script>
-<script defer src="js/data/missions.js?v=4c9e2a9d2004a70b"></script>
-<script defer src="js/data/achievements.js?v=4c9e2a9d2004a70b"></script>
-<script defer src="js/data/funding.js?v=4c9e2a9d2004a70b"></script>
-<script defer src="js/data/changelog.js?v=4c9e2a9d2004a70b"></script>
+<script defer src="js/data/moves.js?v=604b69694e3c8098"></script>
+<script defer src="js/data/types.js?v=604b69694e3c8098"></script>
+<script defer src="js/data/starters.js?v=604b69694e3c8098"></script>
+<script defer src="js/data/enemies.js?v=604b69694e3c8098"></script>
+<script defer src="js/data/upgrades.js?v=604b69694e3c8098"></script>
+<script defer src="js/data/items.js?v=604b69694e3c8098"></script>
+<script defer src="js/data/missions.js?v=604b69694e3c8098"></script>
+<script defer src="js/data/achievements.js?v=604b69694e3c8098"></script>
+<script defer src="js/data/funding.js?v=604b69694e3c8098"></script>
+<script defer src="js/data/changelog.js?v=604b69694e3c8098"></script>
 <!-- mundo -->
-<script defer src="js/world/tiles.js?v=4c9e2a9d2004a70b"></script>
-<script defer src="js/world/world.js?v=4c9e2a9d2004a70b"></script>
+<script defer src="js/world/tiles.js?v=604b69694e3c8098"></script>
+<script defer src="js/world/world.js?v=604b69694e3c8098"></script>
 <!-- entidades -->
-<script defer src="js/entities/vfx.js?v=4c9e2a9d2004a70b"></script>
-<script defer src="js/entities/fx.js?v=4c9e2a9d2004a70b"></script>
-<script defer src="js/entities/projectile.js?v=4c9e2a9d2004a70b"></script>
-<script defer src="js/entities/enemy.js?v=4c9e2a9d2004a70b"></script>
-<script defer src="js/entities/pickup.js?v=4c9e2a9d2004a70b"></script>
-<script defer src="js/entities/player.js?v=4c9e2a9d2004a70b"></script>
+<script defer src="js/entities/vfx.js?v=604b69694e3c8098"></script>
+<script defer src="js/entities/fx.js?v=604b69694e3c8098"></script>
+<script defer src="js/entities/projectile.js?v=604b69694e3c8098"></script>
+<script defer src="js/entities/enemy.js?v=604b69694e3c8098"></script>
+<script defer src="js/entities/pickup.js?v=604b69694e3c8098"></script>
+<script defer src="js/entities/player.js?v=604b69694e3c8098"></script>
 <!-- sistemas -->
-<script defer src="js/systems/stats.js?v=4c9e2a9d2004a70b"></script>
-<script defer src="js/systems/combat.js?v=4c9e2a9d2004a70b"></script>
-<script defer src="js/systems/spawner.js?v=4c9e2a9d2004a70b"></script>
-<script defer src="js/systems/levelup.js?v=4c9e2a9d2004a70b"></script>
-<script defer src="js/systems/gacha.js?v=4c9e2a9d2004a70b"></script>
-<script defer src="js/systems/interact.js?v=4c9e2a9d2004a70b"></script>
-<script defer src="js/systems/rift.js?v=4c9e2a9d2004a70b"></script>
-<script defer src="js/systems/judgment.js?v=4c9e2a9d2004a70b"></script>
-<script defer src="js/systems/events.js?v=4c9e2a9d2004a70b"></script>
-<script defer src="js/systems/weather.js?v=4c9e2a9d2004a70b"></script>
-<script defer src="js/systems/pathing.js?v=4c9e2a9d2004a70b"></script>
-<script defer src="js/systems/progress.js?v=4c9e2a9d2004a70b"></script>
-<script defer src="js/systems/hazards.js?v=4c9e2a9d2004a70b"></script>
-<script defer src="js/core/cloud-config.js?v=4c9e2a9d2004a70b"></script>
-<script defer src="js/vendor/firebase.js?v=4c9e2a9d2004a70b"></script>
-<script defer src="js/core/cloud-sync.js?v=4c9e2a9d2004a70b"></script>
-<script defer src="js/core/cloud.js?v=4c9e2a9d2004a70b"></script>
-<!-- red: original multiplayer remains disabled -->
-<script defer src="js/net/social.js?v=4c9e2a9d2004a70b"></script>
-<script defer src="js/net/codec.js?v=4c9e2a9d2004a70b"></script>
-<script defer src="js/net/net.js?v=4c9e2a9d2004a70b"></script>
-<script defer src="js/net/coop.js?v=4c9e2a9d2004a70b"></script>
-<script defer src="js/net/ranking.js?v=4c9e2a9d2004a70b"></script>
+<script defer src="js/systems/stats.js?v=604b69694e3c8098"></script>
+<script defer src="js/systems/combat.js?v=604b69694e3c8098"></script>
+<script defer src="js/systems/spawner.js?v=604b69694e3c8098"></script>
+<script defer src="js/systems/levelup.js?v=604b69694e3c8098"></script>
+<script defer src="js/systems/gacha.js?v=604b69694e3c8098"></script>
+<script defer src="js/systems/interact.js?v=604b69694e3c8098"></script>
+<script defer src="js/systems/rift.js?v=604b69694e3c8098"></script>
+<script defer src="js/systems/judgment.js?v=604b69694e3c8098"></script>
+<script defer src="js/systems/events.js?v=604b69694e3c8098"></script>
+<script defer src="js/systems/weather.js?v=604b69694e3c8098"></script>
+<script defer src="js/systems/pathing.js?v=604b69694e3c8098"></script>
+<script defer src="js/systems/progress.js?v=604b69694e3c8098"></script>
+<script defer src="js/systems/hazards.js?v=604b69694e3c8098"></script>
+<script defer src="js/core/cloud-config.js?v=604b69694e3c8098"></script>
+<script defer src="js/vendor/firebase.js?v=604b69694e3c8098"></script>
+<script defer src="js/core/cloud-sync.js?v=604b69694e3c8098"></script>
+<script defer src="js/core/cloud.js?v=604b69694e3c8098"></script>
+<!-- Private room signaling; original backend remains disabled. -->
+<script defer src="js/net/mobile-rooms.js?v=604b69694e3c8098"></script>
+<script defer src="js/net/codec.js?v=604b69694e3c8098"></script>
+<script defer src="js/net/mobile-net.js?v=604b69694e3c8098"></script>
+<script defer src="js/net/coop.js?v=604b69694e3c8098"></script>
+<script defer src="js/net/ranking.js?v=604b69694e3c8098"></script>
 <!-- interfaz -->
-<script defer src="js/ui/icons.js?v=4c9e2a9d2004a70b"></script>
-<script defer src="js/ui/ui.js?v=4c9e2a9d2004a70b"></script>
-<script defer src="js/ui/hud.js?v=4c9e2a9d2004a70b"></script>
-<script defer src="js/ui/login.js?v=4c9e2a9d2004a70b"></script>
-<script defer src="js/ui/test.js?v=4c9e2a9d2004a70b"></script>
-<script defer src="js/ui/menu.js?v=4c9e2a9d2004a70b"></script>
-<script defer src="js/ui/slots.js?v=4c9e2a9d2004a70b"></script>
-<script defer src="js/ui/gacha-ui.js?v=4c9e2a9d2004a70b"></script>
-<script defer src="js/ui/run-ui.js?v=4c9e2a9d2004a70b"></script>
-<script defer src="js/ui/social-ui.js?v=4c9e2a9d2004a70b"></script>
-<script defer src="js/ui/ranking-ui.js?v=4c9e2a9d2004a70b"></script>
-<script defer src="js/ui/mod-ui.js?v=4c9e2a9d2004a70b"></script>
-<script defer src="js/ui/goals-ui.js?v=4c9e2a9d2004a70b"></script>
-<script defer src="js/ui/settings-ui.js?v=4c9e2a9d2004a70b"></script>
-<script defer src="js/ui/layout-ui.js?v=4c9e2a9d2004a70b"></script>
-<script defer src="js/ui/support-ui.js?v=4c9e2a9d2004a70b"></script>
-<script defer src="js/ui/news-ui.js?v=4c9e2a9d2004a70b"></script>
-<script defer src="js/core/updater.js?v=4c9e2a9d2004a70b"></script>
+<script defer src="js/ui/icons.js?v=604b69694e3c8098"></script>
+<script defer src="js/ui/ui.js?v=604b69694e3c8098"></script>
+<script defer src="js/ui/hud.js?v=604b69694e3c8098"></script>
+<script defer src="js/ui/login.js?v=604b69694e3c8098"></script>
+<script defer src="js/ui/test.js?v=604b69694e3c8098"></script>
+<script defer src="js/ui/menu.js?v=604b69694e3c8098"></script>
+<script defer src="js/ui/slots.js?v=604b69694e3c8098"></script>
+<script defer src="js/ui/gacha-ui.js?v=604b69694e3c8098"></script>
+<script defer src="js/ui/run-ui.js?v=604b69694e3c8098"></script>
+<script defer src="js/ui/mobile-coop-ui.js?v=604b69694e3c8098"></script>
+<script defer src="js/ui/ranking-ui.js?v=604b69694e3c8098"></script>
+<script defer src="js/ui/mod-ui.js?v=604b69694e3c8098"></script>
+<script defer src="js/ui/goals-ui.js?v=604b69694e3c8098"></script>
+<script defer src="js/ui/settings-ui.js?v=604b69694e3c8098"></script>
+<script defer src="js/ui/layout-ui.js?v=604b69694e3c8098"></script>
+<script defer src="js/ui/support-ui.js?v=604b69694e3c8098"></script>
+<script defer src="js/ui/news-ui.js?v=604b69694e3c8098"></script>
+<script defer src="js/core/updater.js?v=604b69694e3c8098"></script>
 <!-- juego -->
-<script defer src="js/game.js?v=4c9e2a9d2004a70b"></script>
-<script defer src="js/ui/cloud-ui.js?v=4c9e2a9d2004a70b"></script>
-<script defer src="js/mobile.js?v=4c9e2a9d2004a70b"></script>
-<script defer src="js/main.js?v=4c9e2a9d2004a70b"></script>
+<script defer src="js/game.js?v=604b69694e3c8098"></script>
+<script defer src="js/ui/cloud-ui.js?v=604b69694e3c8098"></script>
+<script defer src="js/mobile.js?v=604b69694e3c8098"></script>
+<script defer src="js/main.js?v=604b69694e3c8098"></script>
 <!-- scripts:end -->
 </body>
 </html>

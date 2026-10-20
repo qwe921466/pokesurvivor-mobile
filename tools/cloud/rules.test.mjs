@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import {initializeTestEnvironment,assertSucceeds,assertFails} from '@firebase/rules-unit-testing';
 import {doc,setDoc,getDoc,getDocs,collection,query,limit,serverTimestamp,deleteDoc,runTransaction} from 'firebase/firestore';
 let env;
-before(async()=>{env=await initializeTestEnvironment({projectId:'demo-pokesurvivor',firestore:{host:'127.0.0.1',port:8089,rules:fs.readFileSync('cloud/firestore.rules','utf8')}})});
+before(async()=>{env=await initializeTestEnvironment({projectId:'demo-rules-'+Date.now(),firestore:{host:'127.0.0.1',port:8089,rules:fs.readFileSync('cloud/firestore.rules','utf8')}})});
 after(async()=>{await env?.cleanup()});
 const db=u=>u?env.authenticatedContext(u).firestore():env.unauthenticatedContext().firestore();
 const save=(revision=1)=>({payload:JSON.stringify({coins:123}),revision,op:'test-operation',updatedAt:serverTimestamp()});

@@ -30,6 +30,100 @@ service cloud.firestore {
       allow update: if owner(uid) && validRank(request.resource.data) && request.resource.data.time >= resource.data.time;
       allow delete: if false;
     }
+    match /mobileRooms/{code} {
+      function signed() { return request.auth != null; }
+      function live(d) { return d.state != 'closed' && d.expiresAt > request.time; }
+      function validMember(m) {
+        return m.keys().hasOnly(['name','dex','shiny','session','ready']) &&
+          m.name is string && m.name.matches('^[A-Za-z0-9_]{3,16}$') &&
+          m.dex is int && m.dex >= 1 && m.dex <= 2000 && m.shiny is bool &&
+          m.ready is bool && m.session is string && m.session.matches('^[A-HJ-NP-Z2-9]{16}$');
+      }
+      function validRoom(d) {
+        return code.matches('^[A-HJ-NP-Z2-9]{10}$') &&
+          d.keys().hasOnly(['host','protocol','state','members','run','seed','createdAt','updatedAt','expiresAt']) &&
+          d.host is string && d.host in d.members && d.protocol == 1 &&
+          d.state in ['lobby','playing','closed'] && d.members is map && d.members.size()>=1 && d.members.size()<=4 &&
+          d.run is int && d.run >= 0 && d.seed is int && d.seed >= 0 && d.seed < 1000000 &&
+          d.updatedAt == request.time && d.expiresAt is timestamp;
+      }
+      function immutable(d,o) {
+        return d.host==o.host && d.protocol==o.protocol && d.createdAt==o.createdAt && d.expiresAt==o.expiresAt;
+      }
+      function ownChange(d,o) {
+        return d.members.diff(o.members).affectedKeys().hasOnly([request.auth.uid]) &&
+          (!(request.auth.uid in d.members) || validMember(d.members[request.auth.uid])) &&
+          (!(request.auth.uid in d.members) || !(request.auth.uid in o.members) ||
+            d.members[request.auth.uid].session==o.members[request.auth.uid].session);
+      }
+      function sameRun(d,o) { return d.run==o.run && d.seed==o.seed; }
+      function readyAll(m) {
+        let k=m.keys();
+        return k.size()>=2 && m[k[0]].ready && m[k[1]].ready &&
+          (k.size()<3 || m[k[2]].ready) && (k.size()<4 || m[k[3]].ready);
+      }
+      function resetOne(n,o) { return n.ready==false && n.diff(o).affectedKeys().hasOnly(['ready']); }
+      function resetMembers(n,o) {
+        let k=o.keys();
+        return n.keys()==k && resetOne(n[k[0]],o[k[0]]) &&
+          (k.size()<2 || resetOne(n[k[1]],o[k[1]])) &&
+          (k.size()<3 || resetOne(n[k[2]],o[k[2]])) && (k.size()<4 || resetOne(n[k[3]],o[k[3]]));
+      }
+      function hostChange(d,o) {
+        return request.auth.uid==o.host && (
+          (d.state=='closed' && sameRun(d,o) && d.members==o.members) ||
+          (d.state==o.state && sameRun(d,o) && ownChange(d,o)) ||
+          (o.state=='lobby' && d.state=='playing' && d.run==o.run+1 &&
+            d.members.keys()==o.members.keys() && ownChange(d,o) && readyAll(d.members)) ||
+          (o.state=='playing' && d.state=='lobby' && sameRun(d,o) && resetMembers(d.members,o.members))
+        );
+      }
+      function guestChange(d,o) {
+        return request.auth.uid!=o.host && d.state==o.state && sameRun(d,o) && ownChange(d,o) &&
+          (request.auth.uid in o.members || o.state=='lobby') &&
+          // During battle a member may unready/leave, but cannot change character or session.
+          (o.state=='lobby' || !(request.auth.uid in d.members) ||
+            resetOne(d.members[request.auth.uid],o.members[request.auth.uid]));
+      }
+      // Knowing a random code allows a signed-in player to read its small invitation record.
+      // There is no room directory. Private saves and email addresses never appear here.
+      allow get: if signed();
+      allow list, delete: if false;
+      allow create: if signed() && validRoom(request.resource.data) &&
+        request.resource.data.host==request.auth.uid && request.resource.data.members.keys()==[request.auth.uid] &&
+        validMember(request.resource.data.members[request.auth.uid]) &&
+        request.resource.data.state=='lobby' && request.resource.data.run==0 && request.resource.data.seed==0 &&
+        request.resource.data.createdAt==request.time &&
+        request.resource.data.expiresAt>request.time &&
+        request.resource.data.expiresAt<=request.time+duration.value(2,'h');
+      allow update: if signed() && live(resource.data) && validRoom(request.resource.data) &&
+        immutable(request.resource.data,resource.data) &&
+        (hostChange(request.resource.data,resource.data) || guestChange(request.resource.data,resource.data));
+      match /signals/{guest} {
+        function room() { return get(/databases/$(database)/documents/mobileRooms/$(code)).data; }
+        function endpoint(r) {
+          return signed() && live(r) && guest in r.members && guest!=r.host &&
+            request.auth.uid in r.members && (request.auth.uid==guest || request.auth.uid==r.host);
+        }
+        function validSignal(d,r) {
+          return d.keys().hasOnly(['hostSession','guestSession','nonce','offer','answer','updatedAt']) &&
+            d.hostSession==r.members[r.host].session && d.guestSession==r.members[guest].session &&
+            d.nonce is string && d.nonce.size()==36 &&
+            d.offer is string && d.offer.size()>0 && d.offer.size()<=24000 &&
+            d.answer is string && d.answer.size()<=24000 && d.updatedAt==request.time;
+        }
+        allow get: if endpoint(room());
+        allow list, delete: if false;
+        allow create: if endpoint(room()) && request.auth.uid==room().host &&
+          room().state=='lobby' && validSignal(request.resource.data,room()) && request.resource.data.answer=='';
+        allow update: if endpoint(room()) && room().state=='lobby' && validSignal(request.resource.data,room()) && (
+          (request.auth.uid==room().host && request.resource.data.answer=='') ||
+          (request.auth.uid==guest &&
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['answer','updatedAt']) &&
+            resource.data.answer=='' && request.resource.data.answer.size()>0)
+        );
+      }
+    }
     match /{document=**} { allow read, write: if false; }
   }
 }

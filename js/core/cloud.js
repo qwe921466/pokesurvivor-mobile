@@ -188,11 +188,19 @@ G.Cloud = (() => {
     if (engine?.conflict) { G.CloudUI.open(); return false; }
     return true; // Offline play is allowed; a later revision conflict requires an explicit choice.
   }
+  async function roomSession(refresh = false) {
+    await init();
+    if (!uid || uid !== G.DB.cloudUid || auth.currentUser?.uid !== uid || G.DB.isStale)
+      throw Error('多人合作需要先登入雲端帳號，每位玩家使用不同帳號。');
+    if (refresh && !await sync(true)) throw Error('請先完成雲端同步或處理存檔衝突，再加入合作。');
+    if (engine?.conflict) throw Error('請先處理雲端存檔衝突。');
+    return { S, fs, uid };
+  }
   addEventListener('online', () => sync());
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden && G.DB.cloudUid && G.Game?.state === 'ui') sync(true);
   });
-  return { errorText, showMessage(text) { emit(status,text); }, enabled, restore, authenticate, capture, sync, resolve, disconnect, resetPassword, completedRun, rankings, beforePlay,
+  return { errorText, showMessage(text) { emit(status,text); }, enabled, restore, authenticate, capture, sync, resolve, disconnect, resetPassword, completedRun, rankings, beforePlay, roomSession,
     get status() { return status; }, get message() { return message; }, get conflict() { return engine?.conflict; }, get local() { return engine?.state?.save; },
     get account() { return auth?.currentUser?.email || ''; } };
 })();

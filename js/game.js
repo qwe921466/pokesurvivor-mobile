@@ -992,7 +992,7 @@ G.Flow = {
   async play() { if (this.starting) return; this.starting = true; try { if (await G.Cloud.beforePlay()) G.Game.startRun(); } finally { this.starting = false; } },
   /** Empieza la partida en grupo (el anfitrión la manda a todos). */
   startCoop(cfg) {
-    if (G.Game.state !== 'ui' || !G.Social.room) return;
+    if (G.Game.state !== 'ui' || !G.Social.acceptStart(cfg)) return;
     G.LobbyUI.close();
     G.Game.startRun(cfg);
   }

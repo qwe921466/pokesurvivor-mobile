@@ -1,6 +1,6 @@
-# PokéSurvivor — iPhone 個人版（雲端帳號／同步／排行榜）
+# PokéSurvivor — iPhone 個人版（雲端帳號／同步／排行榜／合作）
 
-此版本從已驗證的 `PokeSurvivor-Cheats` 複製並調整，保留原作遊戲及 UI。原作者：[JPTER78/pokesurvivor](https://github.com/JPTER78/pokesurvivor)。這是個人使用的非官方單人修改版。
+此版本從已驗證的 `PokeSurvivor-Cheats` 複製並調整，保留原作遊戲及 UI。原作者：[JPTER78/pokesurvivor](https://github.com/JPTER78/pokesurvivor)。這是個人使用的非官方修改版。
 
 此版本使用 GitHub Pages 靜態託管，本機與部署後皆不會同步到官方伺服器。
 
@@ -9,7 +9,7 @@
 - 正式環境只需要 GitHub Pages 提供 HTML、CSS、JavaScript、字型及圖片，不需要 Mac、Python、Node 或任何自建後端持續運作。
 - `index.html` 是首頁，直接載入修改過的分檔 JavaScript；沒有 `app.min.js`。`dev.html` 導向同一首頁，避免版本分歧。
 - `js/core/db.js` 保留原本本機帳號；`cloud.js`／`cloud-sync.js` 提供獨立雲端帳號與版本式同步。官方 `firebase-config.js` 仍固定為 `null`。
-- 好友與多人連線仍停用。原作 `DB.online` 永遠為 false、`DB.fb` 永遠為 null；新的共用排行榜走本站專案。CSP 僅允許本站及 Firebase Auth／Firestore API，不載入遠端 SDK。
+- 官方好友功能停用；本站另提供房間碼合作。原作 `DB.online` 永遠為 false、`DB.fb` 永遠為 null；新的共用排行榜走本站專案。CSP 僅允許本站及 Firebase Auth／Firestore API，不載入遠端 SDK。
 - 所有資源使用相對路徑，支援 GitHub Pages 的 `/pokesurvivor-mobile/` 子路徑。
 
 
@@ -28,15 +28,29 @@
 
 雲端權限：`cloud/firestore.rules`。私有 `mobileSaves/<uid>` 只允許本人讀寫；`mobileRanks/<uid>` 只有本人可寫，查詢需登入且每次最多 100 筆；其他路徑預設拒絕。Web config 是公開專案識別，不是管理員金鑰。
 
-維護測試使用 Node >=24.12、Java 21：`npm ci --prefix tools/cloud`，再執行 `tools/cloud/node_modules/.bin/firebase emulators:exec --project demo-pokesurvivor --only auth,firestore "node --test tools/cloud/rules.test.mjs && node --test tools/cloud/integration.test.mjs"`。正式站點不需要 Node／Java 或本機模擬器。
+維護測試使用 Node >=24.12、Java 21：`npm ci --prefix tools/cloud`，再執行 `tools/cloud/node_modules/.bin/firebase emulators:exec --project demo-pokesurvivor --only auth,firestore "node --test tools/cloud/rules.test.mjs && node --test tools/cloud/integration.test.mjs && node --test tools/cloud/rooms.test.mjs"`。正式站點不需要 Node／Java 或本機模擬器。
 
 ## 2026-10-20 更新
 
 已整合官方提交 [`018e986f4c12f414dfa84193ee35b2959b1e325c`](https://github.com/JPTER78/pokesurvivor/commit/018e986f4c12f414dfa84193ee35b2959b1e325c)：38 個新招式、物理／特殊攻防、初始招式選擇、收藏搜尋與最愛、戰鬥傷害統計、手動瞄準、手把與自訂觸控配置，以及官方戰鬥修正。精確來源與整合範圍記錄在 `UPSTREAM.json`。
 
-保留本站繁體中文、iPhone 安全區與觸控座標修正、獨立雲端帳號和交易式存檔同步。未啟用官方資料庫、好友、多人模式或官方驗證流程。排行榜保留原成績；時間驗證上限改為 60 分鐘，以支援新版超過 35 分鐘的戰鬥。
+保留本站繁體中文、iPhone 安全區與觸控座標修正、獨立雲端帳號和交易式存檔同步。未啟用官方資料庫、好友或官方驗證流程；合作模式改走本站房間與玩家直連。排行榜保留原成績；時間驗證上限改為 60 分鐘，以支援新版超過 35 分鐘的戰鬥。
 
 存檔格式升為 v4，新增最愛、出戰次數與初始招式；原有資源與收集會保留。**手機和電腦都先更新再切換裝置**。舊版程式遇到新格式會拒絕寫入，以免遺失新增欄位；請關閉舊遊戲視窗後重新開啟。
+
+## 房間碼合作（2–4 人）
+
+主選單「多人合作」→「建立房間」；朋友登入自己的雲端帳號，輸入 10 位房間碼。連線成功後朋友按「準備」，房主按「開始合作」。每人使用自己的寶可夢與強化，結算收益寫入各自存檔，合作時間不提交到單人排行榜。重新整理後請建立新房；目前不提供戰鬥中途加入、重連或房主轉移。
+
+房主裝置需保持遊戲開啟。房主切到背景時隊伍會暫停；房主斷線時其餘玩家結算已有進度。若作業系統直接關閉某位玩家的頁面，該裝置尚未結算的戰鬥仍可能遺失，與單人模式相同。其他玩家中途離開不阻擋其餘隊友選卡。房間 2 小時到期，之後需重新建立。
+
+`mobile-rooms.js`、`mobile-net.js` 和 `mobile-coop-ui.js` 接替原作社交／網路入口，沿用 `coop.js` 的戰鬥邏輯。`mobileRooms/<randomCode>` 保存最多 4 位玩家的 UID、暱稱、角色、準備狀態與局次；登入後知道房間碼才可讀取，禁止列出房間。`signals/<guestUid>` 只有房主及該訪客可讀寫 SDP，過期或關閉後禁止存取。原始社交檔案保留但不載入。協定不相容的更新應同時提升 `PROTOCOL` 與規則中的版本要求。
+
+戰鬥以 WebRTC 直接傳送，Google STUN 只協助建立連線。沒有付費 TURN、資料庫戰鬥中繼、常駐 Mac 或額外付費服務；每次連線通常只寫入一份 offer 和一份 answer。**部分 Wi-Fi／行動網路無法直連**，請切換網路後由房主按「重試連線」。連線不會無限自動重試，使用量仍受 Spark 免費額度限制。
+
+只把房間碼分享給信任的朋友。房間不是公開目錄；加入後玩家會互相取得遊戲狀態，WebRTC 也可能透露網路 IP。不分享電子郵件、密碼、登入權杖或完整存檔。到期限制是存取控制，不會自動刪除 Firestore 記錄；管理者可按需清理過期房間與其 signals。未設定付費 TTL 或排程服務。
+
+本機瀏覽器驗證：啟動 demo 模擬器，執行 `node tools/cloud/coop-fixtures.mjs` 與 `python3 tools/cloud/serve-coop-test.py`。四個 loopback 網址（8771–8774）使用互相隔離的儲存空間、四個假帳號及 demo 後端；測試工具不會打包到網站。實體 iPhone、主畫面模式與跨行動網路連線需另外實測。
 
 ## 補滿資源
 

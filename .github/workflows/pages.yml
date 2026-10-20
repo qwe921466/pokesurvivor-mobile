@@ -23,7 +23,7 @@ jobs:
       - name: Install pinned Firebase testing tools
         run: npm ci --prefix tools/cloud
       - name: Check cloud access rules and two-device sync against emulators
-        run: tools/cloud/node_modules/.bin/firebase emulators:exec --project demo-pokesurvivor --only auth,firestore "node --test tools/cloud/rules.test.mjs && node --test tools/cloud/integration.test.mjs"
+        run: tools/cloud/node_modules/.bin/firebase emulators:exec --project demo-pokesurvivor --only auth,firestore "node --test tools/cloud/rules.test.mjs && node --test tools/cloud/integration.test.mjs && node --test tools/cloud/rooms.test.mjs"
   build:
     needs: cloud-tests
     runs-on: ubuntu-latest
