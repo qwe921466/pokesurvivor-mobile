@@ -107,6 +107,8 @@ G.I18n = (() => {
 
   /** Traduce un texto (sin espacios de los lados) al idioma actual. */
   function t(s, context) {
+    // Evolved moves keep the translated base name and the upstream + suffix.
+    if (context && typeof s === 'string' && s.endsWith(' +')) return t(s.slice(0, -2), context) + ' +';
     const contextual = contexts.get(context);
     if (contextual && Object.prototype.hasOwnProperty.call(contextual, s)) return contextual[s];
     if (lang === 'es' || !s || typeof s !== 'string') return s;

@@ -1,6 +1,6 @@
 /* Personal project only. Firestore carries bounded room metadata and SDP, never battle frames. */
 G.Social = (() => {
-  const PROTOCOL = 1, MAX_PLAYERS = 4;
+  const PROTOCOL = 2, MAX_PLAYERS = 4;
   const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   const random = n => Array.from(crypto.getRandomValues(new Uint8Array(n)), x => alphabet[x % 32]).join('');
   let ctx, room = null, session = random(16), stop, expiryTimer, generation = 0, startedRun = 0, busy = false;
@@ -126,12 +126,22 @@ G.Social = (() => {
       const members = {...d.members}; delete members[ctx.uid]; return {...d,members};
     }); } finally { localClose('left'); }
   }
+  function dropMember(uid) {
+    if (!room?.isHost || uid === ctx.uid) return Promise.resolve();
+    return update(d => {
+      if (d.host !== ctx.uid || !d.members[uid]) return null;
+      const members = {...d.members}; delete members[uid]; return {...d,members};
+    }).catch(e => G.UI?.toast(G.Cloud.errorText(e)));
+  }
   function setOpen(value) {
     if (!value || !room?.isHost) return;
     update(d => ({...d,state:'lobby',members:Object.fromEntries(Object.entries(d.members)
       .map(([u,m])=>[u,{...m,ready:false}]))})).catch(e => G.UI.toast(G.Cloud.errorText(e)));
   }
   function setPlaying(value) {
+    if (!value && room && !room.isHost && G.Net.mode(room.host) !== 'direct') {
+      leaveRoom().catch(() => {}); return;
+    }
     if (!value && room) update(d => ({...d,members:{...d.members,[ctx.uid]:{...d.members[ctx.uid],ready:false}}}))
       .catch(() => {}); // Earned progress is committed independently of room metadata.
   }
@@ -144,7 +154,7 @@ G.Social = (() => {
       medals:unlocked.slice().sort((a,b)=>(b.tier-a.tier)||(s.ach[b.id]-s.ach[a.id])).slice(0,8).map(a=>a.id)};
   }
   G.DB.onLeave(leaveRoom);
-  return {MAX_PLAYERS,PROTOCOL,start,createRoom,joinRoom,leaveRoom,ready,begin,setOpen,setPlaying,profileData,
+  return {MAX_PLAYERS,PROTOCOL,start,createRoom,joinRoom,leaveRoom,ready,begin,dropMember,setOpen,setPlaying,profileData,
     publishProfile(){},getProfile:async()=>null,on(fn){listeners.add(fn);},
     acceptStart(cfg){return room?.id===cfg.room && room.state==='playing' && room.run===cfg.run && startedRun===cfg.run;},
     get room(){return room;},get uid(){return ctx?.uid;},get me(){return G.DB.cloudUid?{name:G.DB.user}:null;},

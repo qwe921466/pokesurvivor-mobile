@@ -39,7 +39,7 @@
     $('lobby-note').textContent=failed?'目前網路無法直接連線。可請房主按「重試連線」，或切換 Wi-Fi／行動網路再試。'
       :room.state==='playing'?'等待本局結束。'
       :!direct?'正在建立玩家間連線（最多約 25 秒）…'
-      :'房主需保持遊戲開啟；切到背景會暫停隊伍。房主離線則結束本局，已取得的進度仍會保存。';
+      :'房主需保持遊戲開啟；切到背景會暫停隊伍。短暫斷線最多等待 45 秒；房主離開或未能恢復時結算進度。';
   }
   function init(){
     $('fr-create').onclick=()=>action(()=>G.Social.createRoom());
@@ -69,7 +69,7 @@
       const r=G.Social.room;
       // The battle callback has already settled the guest. Release its membership
       // so returning from the result cannot strand it in a departed host's room.
-      if(r && !r.isHost && r.state==='playing' && uid===r.host && ['failed','closed'].includes(mode))
+      if(r && !r.isHost && r.state==='playing' && !G.Coop?.active && uid===r.host && ['failed','closed'].includes(mode))
         G.Social.leaveRoom().catch(()=>{});
       if(G.UI.isOpen('scr-lobby'))render();
     });

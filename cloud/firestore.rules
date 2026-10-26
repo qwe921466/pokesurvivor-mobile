@@ -42,7 +42,7 @@ service cloud.firestore {
       function validRoom(d) {
         return code.matches('^[A-HJ-NP-Z2-9]{10}$') &&
           d.keys().hasOnly(['host','protocol','state','members','run','seed','createdAt','updatedAt','expiresAt']) &&
-          d.host is string && d.host in d.members && d.protocol == 1 &&
+          d.host is string && d.host in d.members && d.protocol in [1,2] &&
           d.state in ['lobby','playing','closed'] && d.members is map && d.members.size()>=1 && d.members.size()<=4 &&
           d.run is int && d.run >= 0 && d.seed is int && d.seed >= 0 && d.seed < 1000000 &&
           d.updatedAt == request.time && d.expiresAt is timestamp;
@@ -73,6 +73,8 @@ service cloud.firestore {
         return request.auth.uid==o.host && (
           (d.state=='closed' && sameRun(d,o) && d.members==o.members) ||
           (d.state==o.state && sameRun(d,o) && ownChange(d,o)) ||
+          (d.state==o.state && sameRun(d,o) && d.members.diff(o.members).addedKeys().size()==0 &&
+            d.members.diff(o.members).changedKeys().size()==0) ||
           (o.state=='lobby' && d.state=='playing' && d.run==o.run+1 &&
             d.members.keys()==o.members.keys() && ownChange(d,o) && readyAll(d.members)) ||
           (o.state=='playing' && d.state=='lobby' && sameRun(d,o) && resetMembers(d.members,o.members))
@@ -115,8 +117,8 @@ service cloud.firestore {
         allow get: if endpoint(room());
         allow list, delete: if false;
         allow create: if endpoint(room()) && request.auth.uid==room().host &&
-          room().state=='lobby' && validSignal(request.resource.data,room()) && request.resource.data.answer=='';
-        allow update: if endpoint(room()) && room().state=='lobby' && validSignal(request.resource.data,room()) && (
+          room().state in ['lobby','playing'] && validSignal(request.resource.data,room()) && request.resource.data.answer=='';
+        allow update: if endpoint(room()) && room().state in ['lobby','playing'] && validSignal(request.resource.data,room()) && (
           (request.auth.uid==room().host && request.resource.data.answer=='') ||
           (request.auth.uid==guest &&
             request.resource.data.diff(resource.data).affectedKeys().hasOnly(['answer','updatedAt']) &&

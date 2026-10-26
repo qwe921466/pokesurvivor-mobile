@@ -5,8 +5,8 @@
 G.DB = (() => {
   const PREFIX = 'pokesurvivor.mobile.';
   const K_ACC = PREFIX + 'accounts', K_SES = PREFIX + 'session', K_SAVE = PREFIX + 'save.';
-  // v4 protects the new fields from older cloud clients that only accept v1–v3.
-  const VERSION = 4, START_COINS = 999999;
+  // v5 prevents old cloud clients from dropping shop, nature and ability data.
+  const VERSION = 5, START_COINS = 999999;
   const REFILL = Object.freeze({ coins: 999999999, t1: 999999, t10: 999999 });
   const VALID = /^[A-Za-z0-9_ñÑáéíóúÁÉÍÓÚ]{3,16}$/;
   let user = null, key = null, save = null, guest = false, storageOk = true, stale = false;
@@ -41,6 +41,8 @@ G.DB = (() => {
       dfav: {},               // collection favorites: signed timestamp
       pused: {},              // completed runs with each Pokémon
       pstart: {},             // selected starting move for each Pokémon
+      pstart2: {},            // second starting move
+      bag: {}, tms: {}, ptm: {}, pnat: {}, pabil: {},
       tickets: { t1: 999, t10: 999 },   // tickets del gacha (x1 y x10)
       pity: {},               // generación del banner -> tiradas sin ★5
       legends: {},            // dex -> fecha: legendarios vencidos en grietas
@@ -96,9 +98,35 @@ G.DB = (() => {
         if (!Number.isSafeInteger(s[coll][d]) || (coll === 'pused' && s[coll][d] < 0)) delete s[coll][d];
       }
     }
-    if (!s.pstart || typeof s.pstart !== 'object' || Array.isArray(s.pstart)) s.pstart = {};
-    for (const d of Object.keys(s.pstart)) {
-      if (typeof s.pstart[d] !== 'string' || (G.Moves && !G.Moves.BY_ID[s.pstart[d]])) delete s.pstart[d];
+    for (const k of ['pstart', 'pstart2']) {
+      if (!obj(s[k])) s[k] = {};
+      for (const d of Object.keys(s[k])) {
+        if (typeof s[k][d] !== 'string' || (G.DEX_BY && !G.DEX_BY[d]) || (G.Moves && !G.Moves.BY_ID[s[k][d]])) delete s[k][d];
+      }
+    }
+    // Mochila y MT: cuántas de cada cosa que exista (tope 999).
+    for (const [k, ok] of [['bag', id => !G.Shop || G.Shop.ITEMS[id]], ['tms', id => !G.Moves || G.Moves.BY_ID[id]]]) {
+      if (!obj(s[k])) s[k] = {};
+      for (const id of Object.keys(s[k])) {
+        s[k][id] = Math.min(999, n(s[k][id]));
+        if (!s[k][id] || !ok(id)) delete s[k][id];
+      }
+    }
+    // MT aprendidas: movimientos que existen, sin repetir.
+    if (!obj(s.ptm)) s.ptm = {};
+    for (const d of Object.keys(s.ptm)) {
+      const l = Array.isArray(s.ptm[d]) ? s.ptm[d] : [];
+      s.ptm[d] = [...new Set(l.filter(id => typeof id === 'string' && (!G.Moves || G.Moves.BY_ID[id])))];
+      if (!s.ptm[d].length || (G.DEX_BY && !G.DEX_BY[d])) delete s.ptm[d];
+    }
+    // Naturaleza y habilidad elegidas: [valor, fecha].
+    for (const [k, ok] of [['pnat', v => typeof v === 'string' && (!G.NATURE_BY || G.NATURE_BY[v])], ['pabil', v => v === 0 || v === 1 || v === 2]]) {
+      if (!obj(s[k])) s[k] = {};
+      for (const d of Object.keys(s[k])) {
+        const e = s[k][d];
+        if (!Array.isArray(e) || !ok(e[0]) || (G.DEX_BY && !G.DEX_BY[d])) delete s[k][d];
+        else s[k][d] = [e[0], n(e[1])];
+      }
     }
     // Atajos: 4 huecos con un movimiento que exista (o null), sin repetir.
     if (s.pbind && typeof s.pbind === 'object') {

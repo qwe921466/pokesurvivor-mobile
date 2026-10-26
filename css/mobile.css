@@ -33,7 +33,7 @@ input.field { font-size: max(16px, 1em); }
 
 /* Leave the top resource bar clear when Chinese panels use a shorter viewport. */
 @media (max-height: 520px) {
-  :lang(zh-Hant) :is(#scr-goals, #scr-dex, #scr-upgrades, #scr-gacha, #scr-friends, #scr-rank, #scr-lobby, #scr-profile) {
+  :lang(zh-Hant) :is(#scr-goals, #scr-dex, #scr-upgrades, #scr-shop, #scr-bag, #scr-news, #scr-gacha, #scr-friends, #scr-rank, #scr-lobby, #scr-profile) {
     padding-top: max(52px, calc(var(--safe-top) + 44px));
   }
 }

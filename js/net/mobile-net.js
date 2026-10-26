@@ -9,7 +9,7 @@ G.Net = (() => {
   const current = (u,p) => peers.get(u)===p && p.generation===generation && p.mode!=='closed' && p.mode!=='failed';
   function drop(u,silent=false) {
     const p=peers.get(u); if(!p)return;
-    p.mode='closed'; clearTimeout(p.timer);clearTimeout(p.disconnectTimer);p.stop?.();
+    p.mode='closed'; clearTimeout(p.timer);clearTimeout(p.disconnectTimer);clearTimeout(p.recoveryTimer);p.stop?.();
     p.pc?.close(); peers.delete(u); if(!silent)emit(u,'closed');
   }
   function close() {
@@ -23,7 +23,17 @@ G.Net = (() => {
   function fail(u,p) {
     if(!current(u,p))return;
     p.mode='failed';clearTimeout(p.timer);clearTimeout(p.disconnectTimer);p.pc?.close();
-    emit(u,'failed'); // Explicit retry only, never a paid fallback or unlimited retry loop.
+    emit(u,'failed');
+    // One automatic host negotiation per peer per run; battle frames never use Firestore.
+    const run=G.Social.room?.run;
+    if (isHost && p.wasDirect && G.Social.room?.state==='playing' && p.recoveredRun!==run) {
+      p.recoveredRun=run;
+      p.recoveryTimer=setTimeout(()=>{
+        if(peers.get(u)!==p || p.generation!==generation || G.Social.room?.state!=='playing' || G.Social.room.run!==run)return;
+        const session=p.session;drop(u,true);
+        const next=make(u,session);next.recoveredRun=run;offer(u,next);
+      },1500);
+    }
   }
   function make(u,session) {
     const p={generation,session,mode:'connecting',pc:null,dc:null,nonce:null,binaryVersion:0};
@@ -54,7 +64,7 @@ G.Net = (() => {
     p.dc=dc;dc.binaryType='arraybuffer';
     dc.onopen=()=>{
       if(!current(u,p)){dc.close();return;}
-      clearTimeout(p.timer);p.mode='direct';
+      clearTimeout(p.timer);p.mode='direct';p.wasDirect=true;
       dc.send(JSON.stringify({k:'net-cap',binary:G.NetCodec.version}));emit(u,'direct');
     };
     dc.onclose=()=>fail(u,p);
@@ -110,8 +120,8 @@ G.Net = (() => {
       if(peers.get(u)!==p||p.generation!==generation||!snap.exists()||snap.metadata.fromCache||snap.metadata.hasPendingWrites)return;
       const d=snap.data();
       if(d.hostSession!==p.session||d.guestSession!==G.Social.session||d.nonce===p.nonce)return;
-      // A host's explicit lobby retry replaces the failed connection, without a new listener.
-      if(G.Social.room?.state!=='lobby')return;
+      // Accept a same-session host retry in the lobby or during the battle grace period.
+      if(!['lobby','playing'].includes(G.Social.room?.state))return;
       try {
         p.nonce=d.nonce;p.answered=false;p.mode='connecting';
         if(p.pc){p.pc.onconnectionstatechange=null;if(p.dc)p.dc.onclose=null;p.pc.close();}

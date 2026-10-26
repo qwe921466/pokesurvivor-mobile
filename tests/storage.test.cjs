@@ -12,7 +12,7 @@ function boot(data = new Map(), fail = () => false) {
   const context={console,TextEncoder,Uint8Array,crypto:webcrypto,structuredClone,Blob,CustomEvent:class {constructor(type,o){this.type=type;this.detail=o?.detail}},localStorage:storage,
     addEventListener:(t,f)=>events[t]=f,document:{addEventListener(){}},G:{},dispatchEvent:e=>warnings.push(e)};
   context.window=context;vm.createContext(context);
-  for(const file of ['js/core/util.js','js/data/pokedex.js','js/data/sprites-meta.js','js/data/upgrades.js','js/data/moves.js','js/core/db.js','js/systems/gacha.js']) vm.runInContext(fs.readFileSync(path.join(ROOT,file),'utf8'),context);
+  for(const file of ['js/core/util.js','js/data/pokedex.js','js/data/sprites-meta.js','js/data/upgrades.js','js/data/moves.js','js/data/natures.js','js/data/abilities.js','js/data/tms.js','js/core/db.js','js/data/shop.js','js/systems/mons.js','js/systems/gacha.js']) vm.runInContext(fs.readFileSync(path.join(ROOT,file),'utf8'),context);
   context.G.Sprites={hasShiny:d=>!!context.G.SPRITE_META[d]?.sh};
   return {G:context.G,data,warnings,events};
 }
@@ -62,7 +62,7 @@ test('v3 saves migrate without changing balances or collection; new favorites an
  let legacy=plain(a.G.DB.save);legacy.v=3;legacy.coins=17;legacy.tickets={t1:2,t10:3};legacy.pupg={1:{hp:3}};
  delete legacy.dfav;delete legacy.pused;delete legacy.pstart;a.data.set(SAVE,JSON.stringify(legacy));
  const b=boot(a.data);assert.equal(await b.G.DB.ready(),true);const s=b.G.DB.save;
- assert.equal(s.v,4);assert.equal(s.coins,17);assert.deepEqual(plain(s.tickets),{t1:2,t10:3});assert.deepEqual(plain(s.owned),legacy.owned);assert.deepEqual(plain(s.pupg),legacy.pupg);
+ assert.equal(s.v,5);assert.equal(s.coins,17);assert.deepEqual(plain(s.tickets),{t1:2,t10:3});assert.deepEqual(plain(s.owned),legacy.owned);assert.deepEqual(plain(s.pupg),legacy.pupg);
  b.G.DB.setFav(1,true);s.pused[1]=8;s.pstart[1]='vine-whip';s.pupg[1].start=1;b.G.DB.commit();
  const c=boot(a.data);await c.G.DB.ready();const exported=JSON.parse(c.G.DB.exportSave()).save;
  assert.equal(c.G.DB.isFav(1),true);assert.equal(exported.pused[1],8);assert.equal(exported.pstart[1],'vine-whip');assert.equal(exported.pupg[1].start,1);
@@ -80,4 +80,44 @@ test('refill refuses guests, stale windows, active battles and unresolved cloud 
  const a=boot();a.G.DB.playAsGuest();assert.throws(()=>a.G.DB.refillResources());await a.G.DB.register('Tester','testpass');
  a.G.Game={state:'playing'};assert.throws(()=>a.G.DB.refillResources());a.G.Game.state='ui';a.G.Cloud={conflict:{}};assert.throws(()=>a.G.DB.refillResources());a.G.Cloud.conflict=null;
  a.events.storage({key:SAVE});assert.throws(()=>a.G.DB.refillResources());assert.equal(a.G.DB.save.coins,999999);
+});
+
+test('v4 migrates to v5 without refills; shop, nature, ability, TMs and second start survive reload and transfer',async()=>{
+ const a=boot();await a.G.DB.register('Tester','testpass');a.G.DB.grant(150,'starter');
+ const legacy=plain(a.G.DB.save);legacy.v=4;legacy.partner=150;legacy.coins=20000;legacy.tickets={t1:13,t10:2};
+ for(const k of ['bag','tms','ptm','pnat','pabil','pstart2'])delete legacy[k];a.data.set(SAVE,JSON.stringify(legacy));
+ const b=boot(a.data);await b.G.DB.ready();const s=b.G.DB.save;
+ assert.equal(s.v,5);assert.equal(s.created,legacy.created);assert.equal(s.coins,20000);assert.deepEqual(plain(s.tickets),legacy.tickets);
+ assert.equal(b.G.Shop.buy('mint').ok,true);assert.equal(s.coins,18500);assert.equal(s.bag.mint,1);
+ assert.equal(b.G.Shop.take('mint'),true);b.G.Mons.setNature(150,'adamant');
+ assert.equal(b.G.Shop.buy('caph').ok,true);assert.equal(b.G.Shop.take('caph'),true);b.G.Mons.setAbility(150,2);
+ const tm=b.G.Shop.dailyTms().find(id=>b.G.Mons.canLearn(150,id));assert.ok(tm);
+ const before=s.coins;assert.equal(b.G.Shop.buy('tm:'+tm).ok,true);assert.equal(s.coins,before-b.G.Shop.tmPrice(tm));
+ assert.equal(b.G.Mons.teach(150,tm),true);assert.equal(b.G.Mons.teach(150,tm),false);
+ s.pstart2[150]=tm;s.pupg[150]={start2:1};b.G.DB.commit();
+ const c=boot(a.data);await c.G.DB.ready();
+ for(const k of ['bag','tms','ptm','pnat','pabil','pstart2','coins','tickets','pupg'])assert.deepEqual(plain(c.G.DB.save[k]),plain(s[k]),k);
+ assert.equal(c.G.Mons.natureOf(150).id,'adamant');assert.equal(c.G.Mons.abilityOf(150).slot,2);
+ assert.ok(c.G.Moves.poolFor(c.G.DEX_BY[150]).includes(tm));
+ const d=boot();await d.G.DB.register('Other','testpass');d.G.DB.importSave(c.G.DB.exportSave());
+ assert.equal(d.G.DB.save.created,legacy.created);assert.deepEqual(plain(d.G.DB.save.ptm),plain(s.ptm));
+ assert.equal(d.G.Mons.natureOf(150).id,'adamant');assert.equal(d.G.Mons.abilityOf(150).slot,2);
+});
+test('hundred pulls charge 100 single tickets or ten ten-pull tickets with ten epic guarantees and persist',async()=>{
+ const a=boot();await a.G.DB.register('Tester','testpass');const s=a.G.DB.save;
+ for(const use of ['t1','t10']){
+  const before=plain(s.tickets),pulls=s.stats.pulls,results=a.G.Gacha.pull(s,100,1,use);
+  assert.equal(results.length,100);assert.equal(s.stats.pulls,pulls+100);
+  assert.equal(s.tickets.t1,before.t1-(use==='t1'?100:0));assert.equal(s.tickets.t10,before.t10-(use==='t10'?10:0));
+  for(let i=0;i<10;i++)assert.ok(results.slice(i*10,i*10+10).some(r=>r.rarity>=4));
+ }
+ a.G.DB.commit();const b=boot(a.data);await b.G.DB.ready();assert.deepEqual(plain(b.G.DB.save.tickets),plain(s.tickets));assert.deepEqual(plain(b.G.DB.save.owned),plain(s.owned));
+ s.tickets={t1:99,t10:9};const before=plain(s);assert.equal(a.G.Gacha.pull(s,100,1,'t10'),null);assert.equal(a.G.Gacha.pull(s,100,1,'t1'),null);assert.deepEqual(plain(s),before);
+});
+test('a completed regional collection earns the shiny charm without resetting or adding a save flag',async()=>{
+ const a=boot();await a.G.DB.register('Tester','testpass');const s=a.G.DB.save;
+ assert.equal(a.G.Gacha.shinyRate(s,1),0.01);
+ for(const p of a.G.DEX.filter(p=>p.gen===1))a.G.DB.grant(p.dex,'gacha');
+ assert.equal(a.G.Gacha.hasIris(s,1),true);assert.equal(a.G.Gacha.shinyRate(s,1),0.02);
+ a.G.DB.commit();const b=boot(a.data);await b.G.DB.ready();assert.equal(b.G.Gacha.shinyRate(b.G.DB.save,1),0.02);
 });

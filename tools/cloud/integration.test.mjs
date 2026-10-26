@@ -47,9 +47,17 @@ test('cloud exports omit Firebase credentials and rankings contain only public s
 test('refill and v4 fields sync to a second device, and post-update runs beyond 35 minutes can rank',async()=>{
  a.G.DB.refillResources();a.G.DB.setFav(1,true);a.G.DB.save.pstart[1]='vine-whip';a.G.DB.save.pused[1]=7;a.G.DB.save.pupg[1]={start:1};a.G.DB.commit();
  assert.equal(await a.G.Cloud.sync(),true);assert.equal(await b.G.Cloud.sync(true),true);
- assert.equal(b.G.DB.save.v,4);assert.equal(b.G.DB.save.coins,999999999);assert.equal(b.G.DB.save.tickets.t1,999999);assert.equal(b.G.DB.isFav(1),true);assert.equal(b.G.DB.save.pstart[1],'vine-whip');assert.equal(b.G.DB.save.pused[1],7);assert.equal(b.G.DB.save.pupg[1].start,1);
+ assert.equal(b.G.DB.save.v,5);assert.equal(b.G.DB.save.coins,999999999);assert.equal(b.G.DB.save.tickets.t1,999999);assert.equal(b.G.DB.isFav(1),true);assert.equal(b.G.DB.save.pstart[1],'vine-whip');assert.equal(b.G.DB.save.pused[1],7);assert.equal(b.G.DB.save.pupg[1].start,1);
  b.G.Gacha.pull(b.G.DB.save,10,1,'t10');b.G.DB.commit();await b.G.Cloud.sync();await a.G.Cloud.sync(true);assert.equal(a.G.DB.save.tickets.t10,999998);
  a.G.Cloud.completedRun({t:2401,lv:50,kills:800,dex:1,shiny:false});await new Promise(ok=>setTimeout(ok,800));assert.equal((await b.G.Cloud.rankings()).find(r=>r.mine).time,2401);
+});
+test('v5 inventory, nature, ability, learned TM and second start sync between real authenticated SDK clients',async()=>{
+ a.G.DB.save.bag={mint:2,cap:1};a.G.DB.save.tms={'shadow-ball':3};a.G.DB.save.ptm={150:['shadow-ball']};
+ a.G.DB.save.pnat={150:['adamant',12345]};a.G.DB.save.pabil={150:[2,12345]};a.G.DB.save.pstart2={150:'shadow-ball'};a.G.DB.commit();
+ assert.equal(await a.G.Cloud.sync(),true);assert.equal(await b.G.Cloud.sync(true),true);
+ for(const k of ['bag','tms','ptm','pnat','pabil','pstart2'])assert.deepEqual(JSON.parse(JSON.stringify(b.G.DB.save[k])),JSON.parse(JSON.stringify(a.G.DB.save[k])));
+ b.G.DB.save.bag.mint--;b.G.DB.save.tms['shadow-ball']--;b.G.DB.commit();await b.G.Cloud.sync();await a.G.Cloud.sync(true);
+ assert.equal(a.G.DB.save.bag.mint,1);assert.equal(a.G.DB.save.tms['shadow-ball'],2);
 });
 test('signing out retains durable cloud cache and source local account',async()=>{
  await a.G.DB.logout();assert.equal(a.G.DB.loggedIn,false);assert.ok([...a.storage.keys()].some(k=>k.startsWith('pokesurvivor.mobile.cloud.')));assert.equal((await a.G.DB.login('CloudTester','local-pass')).ok,true);assert.equal(a.G.DB.mode,'local');assert.equal(a.G.DB.save.tickets.t1,998);

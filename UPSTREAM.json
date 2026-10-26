@@ -1,25 +1,29 @@
 {
   "repository": "https://github.com/JPTER78/pokesurvivor",
-  "commit": "018e986f4c12f414dfa84193ee35b2959b1e325c",
-  "integratedOn": "2026-10-20",
-  "previousSourceVersion": "025032c5a0",
-  "previousPersonalCommit": "e68ac2f63a3ea68578b7ee95be8b743080df895c",
-  "saveVersion": 4,
+  "commit": "680c3e12c670a0f131ec846c43248372853389b1",
+  "integratedOn": "2026-10-26",
+  "previousSourceVersion": "018e986f4c12f414dfa84193ee35b2959b1e325c",
+  "previousPersonalCommit": "f91fad1e78c1dd1f0122e25887eebbf7139fa25d",
+  "saveVersion": 5,
   "license": "PolyForm-Noncommercial-1.0.0",
   "preserved": [
     "personal cloud accounts and revision-checked sync",
     "Traditional Chinese",
     "iPhone safe area, viewport and touch coordinates",
-    "private saves and shared personal leaderboard"
+    "private saves and shared personal leaderboard",
+    "resource refill button and normal spending",
+    "personal room-code multiplayer with bounded direct reconnection"
   ],
   "excluded": [
-    "official Firebase credentials and backend",
-    "official multiplayer and social service",
-    "official app.min.js, hosting and locale loader"
+    "official Firebase and RTDB credentials, services, save ledger and leaderboard reset",
+    "official TURN server and token endpoint",
+    "official live-stream polling and workflow",
+    "official minified bundle, hosting, custom domain and locale loader"
   ],
   "refill": {
     "coins": 999999999,
     "tickets.t1": 999999,
     "tickets.t10": 999999
-  }
+  },
+  "roomProtocol": 2
 }

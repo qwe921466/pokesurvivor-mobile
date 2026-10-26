@@ -115,3 +115,14 @@ test('fixed joystick follows scaled canvas coordinates and releases on lost capt
  assert.equal(G.Touch.stick.fixed,true);assert.equal(G.Touch.stick.ox,base.x);assert.ok(G.Touch.vector()[0]>.99);
  canvas.emit('lostpointercapture',finger(0,0));assert.equal(G.Touch.vector(),null);
 });
+
+test('manual aim and movement use separate fingers in the scaled canvas and both reset on suspension',()=>{
+ const {G,canvas,win}=setup();G.Settings.get=k=>k==='aimManual'?true:k==='stickMode'?'float':1;
+ canvas.rect={left:45,top:20,width:700,height:310};
+ const event=(x,y,id)=>({...finger(0,0,id),...logicalToClient(canvas,x,y)});
+ canvas.emit('pointerdown',event(180,250,1));canvas.emit('pointermove',event(220,250,1));
+ canvas.emit('pointerdown',event(650,220,2));canvas.emit('pointermove',event(650,260,2));
+ assert.deepEqual(Array.from(G.Touch.vector()),[1,0]);assert.deepEqual(Array.from(G.Touch.aim()),[0,1]);
+ canvas.emit('pointerup',event(650,260,2));assert.equal(G.Touch.aim(),null);assert.ok(G.Touch.vector());
+ win.emit('blur');assert.equal(G.Touch.vector(),null);
+});

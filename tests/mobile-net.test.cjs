@@ -73,3 +73,14 @@ test('guest accepts the host player-state map and level-up event, in JSON and bi
  assert.equal(b.received.length,2);
  }finally{b.G.Net.close();}
 });
+
+test('battle recovery makes only one automatic same-session negotiation per run and leaving cancels it',async()=>{
+ const b=boot();try{
+ await tick();b.dc.onopen();b.G.Social.room={state:'playing',run:1};b.dc.onclose();
+ await new Promise(r=>setTimeout(r,1600));await tick();assert.equal(b.writes.length,2);
+ b.dc.onopen();b.dc.onclose();await new Promise(r=>setTimeout(r,1600));assert.equal(b.writes.length,2);
+ b.G.Social.room={state:'lobby',run:1};b.G.Net.retry();await tick();b.dc.onopen();
+ b.G.Social.room={state:'playing',run:2};b.dc.onclose();b.G.Net.close();
+ await new Promise(r=>setTimeout(r,1600));assert.equal(b.writes.length,3);assert.equal(b.callbacks.size,0);
+ }finally{b.G.Net.close();}
+});

@@ -109,3 +109,22 @@ test('closed and expired rooms reject membership and signaling writes',async()=>
  await env.withSecurityRulesDisabled(async c=>SDK.setDoc(SDK.doc(c.firestore(),'mobileRooms','ABCDEFGH26'),{...row,expiresAt:SDK.Timestamp.fromMillis(1)}));
  await assertFails(SDK.setDoc(SDK.doc(b,'mobileRooms','ABCDEFGH26'),{...row,updatedAt:SDK.serverTimestamp()}));
 });
+
+test('protocol 2 supports battle reconnection and host removal without granting edits to other members',async()=>{
+ const h=boot(),a=boot(),b=boot();await h.G.Social.createRoom();await until(()=>h.G.Social.room);
+ const id=h.G.Social.room.id;await a.G.Social.joinRoom(id);await b.G.Social.joinRoom(id);
+ await until(()=>h.G.Social.room.members.length===3&&a.G.Social.room&&b.G.Social.room);
+ assert.equal(h.G.Social.room.protocol,2);
+ await a.G.Social.ready(true);await b.G.Social.ready(true);await until(()=>h.G.Social.room.members.filter(m=>m.ready).length===2);
+ await h.G.Social.begin();await until(()=>a.G.Social.room.state==='playing');
+ const signal=['mobileRooms',id,'signals',a.user];
+ const offer={hostSession:h.G.Social.session,guestSession:a.G.Social.session,nonce:webcrypto.randomUUID(),offer:'reconnect',answer:'',updatedAt:SDK.serverTimestamp()};
+ await SDK.setDoc(SDK.doc(h.db,...signal),offer);await SDK.setDoc(SDK.doc(a.db,...signal),{...offer,answer:'connected'});
+ const row=(await SDK.getDoc(SDK.doc(h.db,'mobileRooms',id))).data();
+ await assertFails(SDK.setDoc(SDK.doc(h.db,'mobileRooms',id),{...row,members:{...row.members,[a.user]:{...row.members[a.user],dex:25}},updatedAt:SDK.serverTimestamp()}));
+ await assertFails(SDK.setDoc(SDK.doc(a.db,'mobileRooms',id),{...row,members:{[h.user]:row.members[h.user],[a.user]:row.members[a.user]},updatedAt:SDK.serverTimestamp()}));
+ await h.G.Social.dropMember(a.user);await until(()=>!a.G.Social.room&&h.G.Social.room.members.length===2);
+ assert.equal(b.G.Social.room.members.find(m=>m.uid===b.user).dex,1);
+ await assertFails(SDK.getDoc(SDK.doc(a.db,...signal)));
+ await h.G.Social.leaveRoom();
+});

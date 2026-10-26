@@ -120,7 +120,9 @@ G.SettingsUI = (() => {
            </div>`;
     } else if (tab === 'a11y') {
       box.innerHTML = section('Apuntado')
-        + toggle('aimManual', 'Apuntar a mano', 'Tus ataques van hacia el ratón (o hacia donde empujes el stick derecho del mando) en vez de al enemigo más cercano. Si sueltas el stick y no mueves el ratón, vuelve a apuntar solo. La cadena y los meteoros siguen buscando a los enemigos solos.');
+        + (G.Settings.touch
+          ? toggle('aimManual', 'Apuntar a mano', 'Con el dedo en la mitad derecha de la pantalla apuntas tus ataques: arrástralo hacia donde quieras disparar (con el joystick fijo, en cualquier sitio lejos de él). La mitad izquierda sigue siendo para moverte. Al soltar el dedo, vuelven a apuntar solos al enemigo más cercano. La cadena y los meteoros siguen buscando a los enemigos solos.')
+          : toggle('aimManual', 'Apuntar a mano', 'Tus ataques van hacia el ratón (o hacia donde empujes el stick derecho del mando) en vez de al enemigo más cercano. Si sueltas el stick y no mueves el ratón, vuelve a apuntar solo. La cadena y los meteoros siguen buscando a los enemigos solos.'));
     } else if (tab === 'acc') {
       renderAccount(box);
     } else {
