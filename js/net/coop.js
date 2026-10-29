@@ -14,8 +14,8 @@
  * porque la conexión parpadea, el siguiente envío lo arregla y nadie se queda
  * esperando a otro para siempre (pasaba en 2026-10).
  *
- * Mensajes (por net.js, unas 15 veces por segundo; 5 si va por el relé):
- *   invitado -> anfitrión  { k:'f', p:[estado], ev:[eventos] }
+ * Mensajes (por net.js, unas 15 veces por segundo; 3 si va por el relé):
+ *   invitado -> anfitrión  { k:'f', p:[estado], ev:[eventos], h, w }   (h, w: ver flushClient)
  *   anfitrión -> invitado  { k:'f', t, lv, xp, xn, ki, bo, co, p:{uid:[estado]},
  *                            e:[[id,x,y,vida,anim,dir,estados]], ev:[eventos],
  *                            ja:[x,y,anim,dir,daño] (Arceus, sólo en la Sentencia) }
@@ -29,6 +29,7 @@ G.Coop = (() => {
   const RATE_FAST = 1 / 15, RATE_SLOW = 1 / 3;
   const rateFor = u => (G.Net.slow(u) ? RATE_SLOW : RATE_FAST);
   const NEAR = 950;                     // radio de enemigos que se mandan a cada uno
+  const EV_MAX = 500;                   // eventos por envío como mucho (el resto, en el siguiente)
 
   let active = false, host = false, me = null, hostUid = null;
   let local = null;                     // tu Player
@@ -59,7 +60,7 @@ G.Coop = (() => {
   /**
    * @param cfg   { seed, host, members }
    * @param pl    tu Player (ya creado)
-   * @param cb    { levelStart(lv), resume(), waiting(names), over(data), lost(msg), team(t), shiny(dex) }
+   * @param cb    lo que hace falta del juego (coopApi en game.js: levelStart, resume, over, hold...)
    */
   function begin(cfg, pl, cb) {
     active = true;
@@ -101,19 +102,17 @@ G.Coop = (() => {
       flushAll();
     } else {
       outEv.push(['bye']);
-      flushClient(true);
+      flushClient('bye');
     }
     end();
   }
 
   // ---------------- lista de jugadores ----------------
 
-  function players() {
-    const out = [local];
-    for (const m of mates.values()) if (m.connected) out.push(m.pl);
-    return out;
-  }
+  /** Los Pokémon de los compañeros conectados. */
   function puppets() { const out = []; for (const m of mates.values()) if (m.connected) out.push(m.pl); return out; }
+  /** Todos: tú primero. */
+  function players() { return [local, ...puppets()]; }
 
   /**
    * Multiplicador de la experiencia del equipo: la media de los bonus de
@@ -161,9 +160,12 @@ G.Coop = (() => {
     const mv = (Array.isArray(s.mv) ? s.mv : []).slice(0, 8)
       .filter(m => Array.isArray(m) && typeof m[0] === 'string' && G.Moves.BY_ID[m[0]])
       .map(m => [m[0], Math.floor(num(m[1], 1, 1, 99)), Math.round(num(m[2], 0, 0, 1e13)), Math.round(num(m[3], 0, 0, 86400)), m[4] ? 1 : 0]);
+    const sk = typeof s.sk === 'string' && G.Skins && G.Skins.get(s.sk, dex) ? s.sk : '';
     return { dex, sh: s.sh === true, lv: Math.floor(num(s.lv, 1, 1, 9999)), t: Math.round(num(s.t, 0, 0, 86400)),
-             it: typeof s.it === 'string' && G.Items.BY[s.it] ? s.it : null, mv };
+             it: typeof s.it === 'string' && G.Items.BY[s.it] ? s.it : null, sk, mv };
   }
+  /** La skin (Halloween) de un compañero, que va en su resumen: se le pone a su Pokémon. */
+  function dressMate(u, c) { const m = mates.get(u); if (m && m.pl.anim && m.pl.dex === c.dex) m.pl.anim.skin = c.sk || null; }
   /** Los resúmenes de todos (el tuyo, recién hecho). Siguen ahí al acabar la partida. */
   function teamSums() { const out = Object.assign({}, sums), m = mySum(); if (m && me) out[me] = m; return out; }
   function takeSums(all) {
@@ -171,7 +173,7 @@ G.Coop = (() => {
     for (const u of Object.keys(all)) {
       if (u === me || !members.some(x => x.uid === u)) continue;
       const c = cleanSum(all[u]);
-      if (c) sums[u] = c;
+      if (c) { sums[u] = c; dressMate(u, c); }
     }
   }
 
@@ -232,8 +234,10 @@ G.Coop = (() => {
     for (const o of mates.values()) {
       if (o.connected && o.uid !== m.uid && o.state) p[o.uid] = o.state;
     }
-    const ev = m.q; m.q = [];
-    const f = { k: 'f', t: r2(st.time), lv: st.level, xp: r2(st.xp), xn: st.xpNext, ki: st.kills, bo: st.bosses, co: st.coins, tk: [st.t1, st.t10],
+    // Tras una espera (ver tick) puede haber muchos: un mensaje enorme no saldría.
+    const ev = m.q.length > EV_MAX ? m.q.splice(0, EV_MAX) : m.q;
+    if (ev === m.q) m.q = [];
+    const f = { k: 'f', t: r2(st.time), lv: st.level, xp: r2(st.xp), xn: st.xpNext, ki: st.kills, bo: st.bosses, co: st.coins, tk: [st.t1, st.t10, st.cn || 0],
                 p, e: enemyList(viewOf(m)), ev };
     const ja = G.Judgment.netState();       // Arceus en la Sentencia
     if (ja) f.ja = ja;
@@ -243,7 +247,12 @@ G.Coop = (() => {
     return f;
   }
 
-  function flushAll() { for (const m of mates.values()) if (m.connected) G.Net.send(m.uid, hostFrame(m)); }
+  function flushMate(m) {
+    const frame = hostFrame(m);
+    // Keep events if the channel closed between the readiness check and send.
+    if (!G.Net.send(m.uid, frame)) m.q.unshift(...frame.ev);
+  }
+  function flushAll() { for (const m of mates.values()) if (m.connected && !G.Net.busy(m.uid)) flushMate(m); }
 
   /*
    * Cada mensaje del invitado lleva también si está eligiendo fusión u objeto (h)
@@ -255,8 +264,10 @@ G.Coop = (() => {
   let myHold = false;
   function flushClient(force) {
     if (!force && !outEv.length && flushT > 0) return;
-    G.Net.toHost({ k: 'f', p: myState(), ev: outEv, h: myHold ? 1 : 0, w: doneSeq });
-    outEv = [];
+    // Con la conexión atascada se espera (los eventos siguen en outEv); el 'bye' sale igual.
+    if (force !== 'bye' && G.Net.busy(hostUid)) return;
+    const ev = outEv.slice(0, EV_MAX);
+    if (G.Net.toHost({ k: 'f', p: myState(), ev, h: myHold ? 1 : 0, w: doneSeq })) outEv.splice(0, ev.length);
   }
 
   /** Cada fotograma (también en la pantalla de subida de nivel). */
@@ -265,7 +276,9 @@ G.Coop = (() => {
     if ((sumT -= dt) <= 0) {
       sumT = SUM_EVERY;
       if (host) emit(['sms', teamSums()]);
-      else { const m = mySum(); if (m) outEv.push(['sm', m]); }
+      else {
+        const m = mySum(); if (m) outEv.push(['sm', m]);
+      }
     }
     if (host) {
       for (const m of mates.values()) {
@@ -276,16 +289,19 @@ G.Coop = (() => {
         m.pl.silent = performance.now() - m.lastAt > SILENT_MS;
         m.flushT -= dt;
         if (m.flushT > 0) continue;
+        // Si aún no ha salido lo de antes, mandar más sólo alarga la cola: se espera
+        // (los eventos se guardan en m.q). Si dura, el invitado se pone en pausa
+        // («esperando al anfitrión») en vez de ver la partida minutos tarde.
+        if (G.Net.busy(m.uid)) continue;
         m.flushT = rateFor(m.uid);
-        G.Net.send(m.uid, hostFrame(m));
+        flushMate(m);
       }
     } else {
       if (!stalled && performance.now() - lastHostAt > STALL_MS) { stalled = true; updateAway(); }
       flushT -= dt;
       if (flushT <= 0) {
         flushT = rateFor(hostUid);
-        G.Net.toHost({ k: 'f', p: myState(), ev: outEv, h: myHold ? 1 : 0, w: doneSeq });
-        outEv = [];
+        flushClient(true);
       }
     }
   }
@@ -355,7 +371,6 @@ G.Coop = (() => {
     G.Spawner.say(m.name + ' ha dejado la partida', 2.6);
     if (waiting.has(u)) picked(u);
     if (holds.has(u)) holdOff(u);
-    if (api.mateLeft) api.mateLeft(m);
   }
 
   // --- en el anfitrión ---
@@ -407,7 +422,7 @@ G.Coop = (() => {
         case 'he': holdOff(from); break;
         case 're': G.Rift.enterRequest(); break;
         case 'bye': mateGone(from); break;
-        case 'sm': { const c = cleanSum(ev[1]); if (c) sums[from] = c; break; }
+        case 'sm': { const c = cleanSum(ev[1]); if (c) { sums[from] = c; dressMate(from, c); } break; }
         // Un invitado con Sequía, Llovizna...: su clima, si no hay otro (como mucho uno por minuto).
         case 'wxq':
           if (typeof ev[1] === 'string' && G.Weather.KINDS[ev[1]] && !G.Weather.current && performance.now() - (m.wxAt || -1e9) > 60000) {
@@ -458,7 +473,7 @@ G.Coop = (() => {
       else if (!msg.lu && showing) api.resume();
     }
     api.syncTeam({ time: msg.t, level: msg.lv, xp: msg.xp, xpNext: msg.xn, kills: msg.ki, bosses: msg.bo, coins: msg.co,
-                   t1: (msg.tk || [])[0], t10: (msg.tk || [])[1] });
+                   t1: (msg.tk || [])[0], t10: (msg.tk || [])[1], cn: num((msg.tk || [])[2], 0, 0, 1e6) });
     for (const u in msg.p || {}) {
       const m = mates.get(u);
       if (m) m.pl.net = readState(msg.p[u]);

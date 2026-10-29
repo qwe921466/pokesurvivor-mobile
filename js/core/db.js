@@ -5,8 +5,8 @@
 G.DB = (() => {
   const PREFIX = 'pokesurvivor.mobile.';
   const K_ACC = PREFIX + 'accounts', K_SES = PREFIX + 'session', K_SAVE = PREFIX + 'save.';
-  // v5 prevents old cloud clients from dropping shop, nature and ability data.
-  const VERSION = 5, START_COINS = 999999;
+  // v6 prevents older cloud clients from dropping Halloween costumes and selections.
+  const VERSION = 6, START_COINS = 999999;
   const REFILL = Object.freeze({ coins: 999999999, t1: 999999, t10: 999999 });
   const VALID = /^[A-Za-z0-9_ñÑáéíóúÁÉÍÓÚ]{3,16}$/;
   let user = null, key = null, save = null, guest = false, storageOk = true, stale = false;
@@ -43,6 +43,8 @@ G.DB = (() => {
       pstart: {},             // selected starting move for each Pokémon
       pstart2: {},            // second starting move
       bag: {}, tms: {}, ptm: {}, pnat: {}, pabil: {},
+      skins: {},             // purchased costume id -> timestamp (permanent)
+      pskin: {},             // dex -> [costume id or '', timestamp]
       tickets: { t1: 999, t10: 999 },   // tickets del gacha (x1 y x10)
       pity: {},               // generación del banner -> tiradas sin ★5
       legends: {},            // dex -> fecha: legendarios vencidos en grietas
@@ -127,6 +129,18 @@ G.DB = (() => {
         if (!Array.isArray(e) || !ok(e[0]) || (G.DEX_BY && !G.DEX_BY[d])) delete s[k][d];
         else s[k][d] = [e[0], n(e[1])];
       }
+    }
+    // Costumes persist after Halloween; only owned costumes for the matching Pokémon can be worn.
+    if (!obj(s.skins)) s.skins = {};
+    for (const id of Object.keys(s.skins)) {
+      if ((G.Skins && !Object.hasOwn(G.Skins.SKINS, id)) || !Number.isSafeInteger(s.skins[id]) || s.skins[id] <= 0) delete s.skins[id];
+    }
+    if (!obj(s.pskin)) s.pskin = {};
+    for (const d of Object.keys(s.pskin)) {
+      const e = s.pskin[d], id = Array.isArray(e) ? e[0] : null;
+      if (typeof id !== 'string' || (G.DEX_BY && !G.DEX_BY[d]) || !Number.isSafeInteger(e[1]) || e[1] < 0 ||
+          (id && (!Object.hasOwn(s.skins, id) || (G.Skins && (!Object.hasOwn(G.Skins.SKINS, id) || G.Skins.SKINS[id].dex !== +d))))) delete s.pskin[d];
+      else s.pskin[d] = [id, e[1]];
     }
     // Atajos: 4 huecos con un movimiento que exista (o null), sin repetir.
     if (s.pbind && typeof s.pbind === 'object') {

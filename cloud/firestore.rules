@@ -42,7 +42,7 @@ service cloud.firestore {
       function validRoom(d) {
         return code.matches('^[A-HJ-NP-Z2-9]{10}$') &&
           d.keys().hasOnly(['host','protocol','state','members','run','seed','createdAt','updatedAt','expiresAt']) &&
-          d.host is string && d.host in d.members && d.protocol in [1,2] &&
+          d.host is string && d.host in d.members && d.protocol in [1,2,3] &&
           d.state in ['lobby','playing','closed'] && d.members is map && d.members.size()>=1 && d.members.size()<=4 &&
           d.run is int && d.run >= 0 && d.seed is int && d.seed >= 0 && d.seed < 1000000 &&
           d.updatedAt == request.time && d.expiresAt is timestamp;

@@ -1,10 +1,10 @@
 {
   "repository": "https://github.com/JPTER78/pokesurvivor",
-  "commit": "680c3e12c670a0f131ec846c43248372853389b1",
-  "integratedOn": "2026-10-26",
-  "previousSourceVersion": "018e986f4c12f414dfa84193ee35b2959b1e325c",
-  "previousPersonalCommit": "f91fad1e78c1dd1f0122e25887eebbf7139fa25d",
-  "saveVersion": 5,
+  "commit": "d667c216ddc99ee7bbb16a0ca0528f25461f037e",
+  "integratedOn": "2026-10-30",
+  "previousSourceVersion": "680c3e12c670a0f131ec846c43248372853389b1",
+  "previousPersonalCommit": "7fe6591d753994dd1959571c5fafaeecbb05b901",
+  "saveVersion": 6,
   "license": "PolyForm-Noncommercial-1.0.0",
   "preserved": [
     "personal cloud accounts and revision-checked sync",
@@ -15,9 +15,9 @@
     "personal room-code multiplayer with bounded direct reconnection"
   ],
   "excluded": [
-    "official Firebase and RTDB credentials, services, save ledger and leaderboard reset",
+    "official Firebase and RTDB credentials, services, save ledger, leaderboard reset and server ranking seals",
     "official TURN server and token endpoint",
-    "official live-stream polling and workflow",
+    "official live-stream polling, video notifications and workflow",
     "official minified bundle, hosting, custom domain and locale loader"
   ],
   "refill": {
@@ -25,5 +25,7 @@
     "tickets.t1": 999999,
     "tickets.t10": 999999
   },
-  "roomProtocol": 2
+  "roomProtocol": 3,
+  "reviewedCommit": "110550a80f81eadd6924b6286807935a479e9b4f",
+  "sourceNote": "Last public unminified source before e9686d5 removes sources. Later public commits through reviewedCommit affect official video/live/SEO/privacy/news; latest published Traditional Chinese translations included."
 }

@@ -10,7 +10,7 @@ before(async()=>{env=await initializeTestEnvironment({projectId:'demo-pokesurviv
 after(async()=>{for(const d of devices)await d.G.Social.leaveRoom().catch(()=>{});await env.cleanup();});
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 async function until(fn){for(let i=0;i<150;i++){if(fn())return;await sleep(40);}assert.ok(fn(),'room listener timed out');}
-function boot(user='roomuser'+(++serial)) {
+function boot(user='roomuser'+(++serial),options={}) {
  const db=env.authenticatedContext(user).firestore(),starts=[],closed=[];
  // Clone VM plain objects into the SDK realm, preserving Timestamp/FieldValue objects.
  const clone=v=>v?.constructor?.name==='Object'?Object.fromEntries(Object.entries(v).map(([k,x])=>[k,clone(x)])):v;
@@ -19,8 +19,12 @@ function boot(user='roomuser'+(++serial)) {
    Cloud:{roomSession:async()=>({S,fs:db,uid:user}),errorText:e=>e.message},
    Net:{open(){},syncMembers(){},close(){closed.push(true)},mode:()=> 'direct'},
    Game:{state:'ui'},Flow:{startCoop:c=>starts.push(c)},UI:{toast(){}}};
- const c={G,crypto:webcrypto,Uint8Array,Uint32Array,setTimeout,clearTimeout};vm.createContext(c);
- vm.runInContext(fs.readFileSync('js/net/mobile-rooms.js','utf8'),c);
+ const c={G,crypto:webcrypto,Uint8Array,Uint32Array,setTimeout,clearTimeout,setInterval(){},performance:{now:()=>1000}};vm.createContext(c);
+ vm.runInContext(fs.readFileSync('js/systems/halloween.js','utf8'),c);
+ G.Halloween={isOn:G.Halloween.isOn,on:!!options.localHw};
+ const source=fs.readFileSync('js/net/mobile-rooms.js','utf8');
+ // Retain an old client's version guard to verify existing rooms remain isolated and usable.
+ vm.runInContext(options.protocol===2?source.replace('const PROTOCOL = 3,','const PROTOCOL = 2,'):source,c);
  const d={G,db,user,starts,closed};devices.push(d);return d;
 }
 let host,guests,code;
@@ -111,7 +115,7 @@ test('closed and expired rooms reject membership and signaling writes',async()=>
 });
 
 test('protocol 2 supports battle reconnection and host removal without granting edits to other members',async()=>{
- const h=boot(),a=boot(),b=boot();await h.G.Social.createRoom();await until(()=>h.G.Social.room);
+ const h=boot(undefined,{protocol:2}),a=boot(undefined,{protocol:2}),b=boot(undefined,{protocol:2});await h.G.Social.createRoom();await until(()=>h.G.Social.room);
  const id=h.G.Social.room.id;await a.G.Social.joinRoom(id);await b.G.Social.joinRoom(id);
  await until(()=>h.G.Social.room.members.length===3&&a.G.Social.room&&b.G.Social.room);
  assert.equal(h.G.Social.room.protocol,2);
@@ -127,4 +131,38 @@ test('protocol 2 supports battle reconnection and host removal without granting 
  assert.equal(b.G.Social.room.members.find(m=>m.uid===b.user).dex,1);
  await assertFails(SDK.getDoc(SDK.doc(a.db,...signal)));
  await h.G.Social.leaveRoom();
+});
+
+test('protocol 3 and previous clients reject each others rooms before changing membership',async()=>{
+ const old=boot(undefined,{protocol:2}),current=boot();
+ try {
+  assert.equal((await old.G.Social.createRoom()).ok,true);await until(()=>old.G.Social.room);
+  const rejected=await current.G.Social.joinRoom(old.G.Social.room.id);
+  assert.equal(rejected.ok,false);assert.match(rejected.error,/版本不同/);
+  assert.equal(old.G.Social.room.members.length,1);assert.equal(current.G.Social.room,null);
+  const olderGuest=boot(undefined,{protocol:2});
+  assert.equal((await current.G.Social.createRoom()).ok,true);await until(()=>current.G.Social.room);
+  assert.equal(current.G.Social.room.protocol,3);
+  const reverse=await olderGuest.G.Social.joinRoom(current.G.Social.room.id);
+  assert.equal(reverse.ok,false);assert.match(reverse.error,/版本不同/);
+  assert.equal(current.G.Social.room.members.length,1);assert.equal(olderGuest.G.Social.room,null);
+ } finally {await old.G.Social.leaveRoom();await current.G.Social.leaveRoom();}
+});
+
+test('host and guest use the server start timestamp for Halloween even when local flags disagree',async()=>{
+ const h=boot(undefined,{localHw:false}),g=boot(undefined,{localHw:true});
+ try {
+  await h.G.Social.createRoom();await until(()=>h.G.Social.room);
+  assert.equal((await g.G.Social.joinRoom(h.G.Social.room.id)).ok,true);
+  await until(()=>g.G.Social.room&&h.G.Social.room.members.length===2);
+  assert.equal((await g.G.Social.ready(true)).ok,true);
+  await until(()=>h.G.Social.room.members.find(m=>m.uid===g.user).ready);
+  assert.equal((await h.G.Social.begin()).ok,true);
+  await until(()=>h.starts.length===1&&g.starts.length===1);
+  const expected=h.G.Halloween.isOn(h.G.Social.room.updatedAt.toDate());
+  assert.equal(h.G.Social.room.updatedAt.toMillis(),g.G.Social.room.updatedAt.toMillis());
+  assert.equal(h.starts[0].hw,expected);assert.equal(g.starts[0].hw,expected);
+  assert.notEqual(h.G.Halloween.on,g.G.Halloween.on);
+  assert.ok([h,g].some(d=>d.starts[0].hw!==d.G.Halloween.on));
+ } finally {await h.G.Social.leaveRoom();}
 });

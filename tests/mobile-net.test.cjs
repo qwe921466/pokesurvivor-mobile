@@ -84,3 +84,76 @@ test('battle recovery makes only one automatic same-session negotiation per run 
  await new Promise(r=>setTimeout(r,1600));assert.equal(b.writes.length,3);assert.equal(b.callbacks.size,0);
  }finally{b.G.Net.close();}
 });
+
+test('backpressure stops enqueuing above 64 KiB and resumes after the channel drains',async()=>{
+ const b=boot();try{
+ assert.equal(b.G.Net.busy('guest'),true);
+ await tick();b.dc.onopen();assert.equal(b.G.Net.busy('guest'),false);
+ b.dc.bufferedAmount=65537;
+ assert.equal(b.G.Net.busy('guest'),true);
+ assert.equal(b.G.Net.send('guest',{k:'f',ev:[['lp']]}),false);
+ assert.equal(b.G.Net.stats.sent,0);
+ b.dc.bufferedAmount=0;
+ assert.equal(b.G.Net.send('guest',{k:'f',ev:[['lp']]}),true);
+ assert.equal(b.G.Net.stats.sent,1);assert.equal(b.writes.length,1);
+ b.dc.onclose();assert.equal(b.G.Net.busy('guest'),true);
+ }finally{b.G.Net.close();}
+});
+
+function coopBoot(host=true){
+ const sent=[],teamSync=[];let receive,blocked=true,accept=true;
+ class Player{
+  constructor(mon){Object.assign(this,{dex:mon.dex,anim:{},hp:100,maxHp:100,moveAngle:0,magnet:78,aim:0,xpMul:1});}
+  activeGroup(){return [];}
+ }
+ const G={Net:{uid:host?'host':'guest',slow:()=>false,busy:()=>blocked,on:fn=>receive=fn,onPeer(){},
+  send:(u,msg)=>{if(!accept)return false;sent.push(msg);return true;},
+  toHost(msg){return this.send('host',msg);}},
+  Player,DEX_BY:{25:{dex:25}},baseStartOf:()=>'',Sprites:{preload(){}},
+  EnemyMgr:{all:()=>[]},Judgment:{netState:()=>null},Items:{BY:{}},Moves:{BY_ID:{}},
+  Skins:{get:(id,dex)=>id==='witch'&&dex===25?{}:null},Social:{me:{name:'Test'}},
+  U:{dist2:(x,y,a,b)=>(x-a)**2+(y-b)**2}};
+ const context={G,performance:{now:()=>1000},setTimeout,clearTimeout,document:{addEventListener(){}}};
+ vm.createContext(context);vm.runInContext(fs.readFileSync('js/net/coop.js','utf8'),context);
+ const local=new Player({dex:25});
+ G.Coop.begin({host:'host',members:[{uid:'host',name:'Host',dex:25},{uid:'guest',name:'Guest',dex:25}]},local,
+  {team:()=>({time:1,level:1,xp:0,xpNext:1,kills:0,bosses:0,coins:0,t1:0,t10:0,cn:42}),
+   syncTeam:s=>teamSync.push(s),hold(){},waiting(){},levelStart(){},resume(){}});
+ return {G,sent,teamSync,receive:(u,m)=>receive(u,m),set blocked(v){blocked=v;},set accept(v){accept=v;}};
+}
+
+test('host retains critical events under backpressure and drains bounded batches without losing order',()=>{
+ const b=coopBoot();try{
+ for(let i=0;i<501;i++)b.G.Coop.broadcast(['say',String(i),1]);
+ b.G.Coop.tick(.1);assert.equal(b.sent.length,0);assert.equal(b.G.Coop.mate('guest').q.length,501);
+ b.blocked=false;b.accept=false;b.G.Coop.tick(.1);
+ assert.equal(b.sent.length,0);assert.equal(b.G.Coop.mate('guest').q.length,501);
+ b.accept=true;b.G.Coop.tick(.1);b.G.Coop.tick(.1);
+ assert.deepEqual(b.sent.map(f=>f.ev.length),[500,1]);
+ assert.equal(b.sent[0].ev[0][1],'0');assert.equal(b.sent[1].ev[0][1],'500');
+ assert.equal(b.sent[0].tk[2],42);
+ }finally{b.G.Coop.end();}
+});
+
+test('guest hold and level-choice state survive a blocked or failed send',()=>{
+ const b=coopBoot(false);try{
+ b.G.Coop.holdStart();b.G.Coop.localPicked();assert.equal(b.sent.length,0);
+ b.blocked=false;b.accept=false;b.G.Coop.tick(.1);assert.equal(b.sent.length,0);
+ b.accept=true;b.G.Coop.tick(.1);assert.equal(b.sent.length,1);
+ assert.deepEqual(Array.from(b.sent[0].ev,e=>e[0]),['hs','lp']);assert.equal(b.sent[0].h,1);
+ b.G.Coop.holdEnd();assert.equal(b.sent[1].h,0);assert.equal(b.sent[1].ev[0][0],'he');
+ }finally{b.G.Coop.end();}
+});
+
+test('co-op validates companion skin IDs and receives the shared candy count',()=>{
+ const host=coopBoot(),guest=coopBoot(false);try{
+ host.receive('guest',{k:'f',ev:[['sm',{dex:25,sk:'witch'}]]});
+ assert.equal(host.G.Coop.mate('guest').pl.anim.skin,'witch');
+ host.receive('guest',{k:'f',ev:[['sm',{dex:25,sk:'unknown'}]]});
+ assert.equal(host.G.Coop.mate('guest').pl.anim.skin,null);
+ guest.receive('host',{k:'f',tk:[2,3,42],ev:[],p:{}});
+ assert.equal(guest.teamSync[0].cn,42);
+ guest.receive('host',{k:'f',tk:[2,3,Infinity],ev:[],p:{}});
+ assert.equal(guest.teamSync[1].cn,0);
+ }finally{host.G.Coop.end();guest.G.Coop.end();}
+});

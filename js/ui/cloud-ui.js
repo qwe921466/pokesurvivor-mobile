@@ -10,7 +10,7 @@ G.CloudUI = (() => {
     <div id="cloud-auth">
       <div class="row"><button class="btn" id="cloud-mode-login">登入雲端</button><button class="btn" id="cloud-mode-register">建立雲端帳號</button></div>
       <form id="cloud-form">
-        <label for="cloud-email">電子郵件（不公開）</label><input class="field" id="cloud-email" type="email" autocomplete="username" required maxlength="254">
+        <label for="cloud-email">電子郵件（不公開）</label><input class="field" id="cloud-email" type="email" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" required maxlength="254">
         <div id="cloud-name-row" class="hidden"><label for="cloud-name">排行榜暱稱（3–16 個英文字母、數字或底線，可與他人同名）</label><input class="field" id="cloud-name" maxlength="16" pattern="[A-Za-z0-9_]{3,16}" autocomplete="nickname"></div>
         <label for="cloud-pass">密碼</label><input class="field" id="cloud-pass" type="password" minlength="8" maxlength="128" autocomplete="current-password" required>
         <label id="cloud-migrate-row" class="note hidden"><input id="cloud-migrate" type="checkbox" checked> 將目前本機進度帶入新雲端存檔（保留本機原檔；已有雲端存檔時優先載入雲端）</label>

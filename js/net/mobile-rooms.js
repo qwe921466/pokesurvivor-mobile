@@ -1,6 +1,7 @@
 /* Personal project only. Firestore carries bounded room metadata and SDP, never battle frames. */
 G.Social = (() => {
-  const PROTOCOL = 2, MAX_PLAYERS = 4;
+  // Halloween changes collision maps and rewards; older clients must use their own rooms.
+  const PROTOCOL = 3, MAX_PLAYERS = 4;
   const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   const random = n => Array.from(crypto.getRandomValues(new Uint8Array(n)), x => alphabet[x % 32]).join('');
   let ctx, room = null, session = random(16), stop, expiryTimer, generation = 0, startedRun = 0, busy = false;
@@ -53,7 +54,7 @@ G.Social = (() => {
         // Only the server-confirmed host transition may start a run; peer messages cannot.
         if (G.Game?.state !== 'ui' || !d.members[ctx.uid].ready) return;
         startedRun = d.run;
-        G.Flow.startCoop({room:id,run:d.run,seed:d.seed,host:d.host,members});
+        G.Flow.startCoop({room:id,run:d.run,seed:d.seed,host:d.host,members,hw:G.Halloween ? G.Halloween.isOn(d.updatedAt.toDate()) : false});
       }
     }, () => { if (generation === token) { localClose(); G.UI?.toast('房間連線中斷，請重新加入。',3500); } });
   }

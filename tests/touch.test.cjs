@@ -25,6 +25,7 @@ function setup(withGame = false) {
     ResizeObserver:class {constructor(fn){this.callback=fn;observers.push(this);} observe(el){this.element=el;}},
     G:{Settings:{touch:true,get:()=>1}, Game:{state:'playing'},
       RunUI:{wirePause(){}}, World:{reset(){},setBiome(){},isFree:()=>true},
+      Tiles:{runBiome:i=>i}, Halloween:{on:false,onChange(){}}, SPRITE_META:{},
       Sprites:{Animator:class {},bodyRadius:()=>8}}};
   context.window=context;vm.createContext(context);
   const load = file => vm.runInContext(fs.readFileSync(path.join(__dirname,'..',file),'utf8'),context);
@@ -34,7 +35,7 @@ function setup(withGame = false) {
   } else {
     context.G.Touch.init(canvas);context.G.Touch.clearButtons(852,393);
   }
-  return {G:context.G,canvas,win,viewport,observers,context};
+  return {G:context.G,canvas,win,doc,viewport,observers,context};
 }
 const finger = (clientX,clientY,pointerId=1)=>({clientX,clientY,pointerId,pointerType:'touch'});
 const logicalToClient = (canvas,x,y)=>({clientX:canvas.rect.left+x*canvas.rect.width/852,clientY:canvas.rect.top+y*canvas.rect.height/393});
@@ -125,4 +126,31 @@ test('manual aim and movement use separate fingers in the scaled canvas and both
  assert.deepEqual(Array.from(G.Touch.vector()),[1,0]);assert.deepEqual(Array.from(G.Touch.aim()),[0,1]);
  canvas.emit('pointerup',event(650,260,2));assert.equal(G.Touch.aim(),null);assert.ok(G.Touch.vector());
  win.emit('blur');assert.equal(G.Touch.vector(),null);
+});
+
+test('anchored joystick keeps the initial touch origin after dragging past its radius',()=>{
+ const {G,canvas}=setup();G.Settings.get=k=>k==='stickMode'?'anchor':1;
+ canvas.rect={left:59,top:20,width:426,height:196.5};
+ canvas.emit('pointerdown',{...finger(0,0),...logicalToClient(canvas,120,300)});
+ canvas.emit('pointermove',{...finger(0,0),...logicalToClient(canvas,300,300)});
+ assert.equal(G.Touch.stick.ox,120);assert.equal(G.Touch.stick.oy,300);
+ assert.deepEqual(Array.from(G.Touch.vector()),[1,0]);
+ canvas.emit('pointermove',{...finger(0,0),...logicalToClient(canvas,120,300)});
+ assert.deepEqual(Array.from(G.Touch.vector()),[0,0]);
+});
+
+test('all fingers lifting recovers a missed pointerup without resetting a remaining finger',()=>{
+ const {G,canvas,doc}=setup();canvas.emit('pointerdown',finger(120,300));
+ doc.emit('touchend',{touches:[{}]});assert.equal(G.Touch.stick.id,1);
+ doc.emit('touchend',{touches:[]});assert.equal(G.Touch.stick,null);
+ canvas.emit('pointerdown',finger(220,300,2));assert.equal(G.Touch.stick.id,2);
+ doc.emit('touchcancel',{touches:[]});assert.equal(G.Touch.stick,null);
+});
+
+test('back closes the touch-layout editor before the underlying settings or battle',()=>{
+ const {G,win}=setup(true);let closed=0,settingsClosed=0;
+ G.LayoutUI={isOpen:true,close(){closed++;this.isOpen=false;}};
+ G.SettingsUI={isOpen:true,close(){settingsClosed++;}};
+ win.emit('popstate');
+ assert.equal(closed,1);assert.equal(settingsClosed,0);
 });

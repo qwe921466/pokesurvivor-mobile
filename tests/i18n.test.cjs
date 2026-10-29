@@ -64,3 +64,15 @@ test('upstream context names and raw canvas keep player names separate from move
  c.G.I18n.rawCanvas(new c.CanvasRenderingContext2D(),'fillText','Scorbunny',0,0);assert.equal(calls.at(-1),'Scorbunny');
  assert.equal(c.G.T('Movimiento inicial'),'初始招式');assert.match(c.G.T('Hiperrayo'),/\p{Script=Han}/u);
 });
+
+test('Halloween shop, costumes, banner, countdown and anchored joystick are available in Traditional Chinese',()=>{
+ const {c}=boot(),t=c.G.T;
+ for(const [source,expected] of [
+  ['Caramelo de Halloween','萬聖節糖果'],['Gengar bruja','女巫耿鬼'],['Pikachu bruja','女巫皮卡丘'],
+  ['Umbreon bruja','女巫月亮伊布'],['Noche Espectral','幽靈之夜'],['Sin skin','無裝扮'],
+  ['Ponérsela','穿上'],['Quitársela','脫下'],['Anclado','定點'],['Tienes 315 caramelos','你有 315 個糖果']
+ ])assert.equal(t(source),expected,source);
+ assert.equal(t('Halloween empieza en 2 d 03:00:00'),'萬聖節倒數 2 天 03:00:00');
+ assert.match(t('Anclado: aparece donde pones el dedo y se queda ahí hasta que lo levantas.'),/留在原處/);
+ assert.match(t('Lo sueltan los Pokémon Fantasma y las calabazas en Halloween. Con ellos se compran las skins de bruja en la Tienda Kecleon.'),/變隱龍商店/);
+});

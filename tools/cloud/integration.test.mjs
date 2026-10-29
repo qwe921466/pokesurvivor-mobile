@@ -18,7 +18,7 @@ function boot(storage=new Map()) {
  addEventListener:(t,f)=>events[t]=f,dispatchEvent(){},document:{hidden:false,addEventListener(){}},
  G:{CloudSDK:sdk,CLOUD_CONFIG:{projectId:'demo-pokesurvivor',apiKey:'fake-api-key',emulator:true}}};
  ctx.window=ctx;vm.createContext(ctx);
- for(const p of ['js/core/util.js','js/data/pokedex.js','js/data/sprites-meta.js','js/data/upgrades.js','js/data/moves.js','js/core/db.js','js/systems/gacha.js','js/core/cloud-sync.js','js/core/cloud.js'])vm.runInContext(fs.readFileSync(p,'utf8'),ctx);
+ for(const p of ['js/core/util.js','js/data/pokedex.js','js/data/sprites-meta.js','js/data/upgrades.js','js/data/moves.js','js/core/skins.js','js/core/db.js','js/systems/gacha.js','js/core/cloud-sync.js','js/core/cloud.js'])vm.runInContext(fs.readFileSync(p,'utf8'),ctx);
  ctx.G.Sprites={hasShiny:d=>!!ctx.G.SPRITE_META[d]?.sh};
  const result={G:ctx.G,storage,events,timers,get app(){return app}};devices.push(result);return result;
 }
@@ -47,7 +47,7 @@ test('cloud exports omit Firebase credentials and rankings contain only public s
 test('refill and v4 fields sync to a second device, and post-update runs beyond 35 minutes can rank',async()=>{
  a.G.DB.refillResources();a.G.DB.setFav(1,true);a.G.DB.save.pstart[1]='vine-whip';a.G.DB.save.pused[1]=7;a.G.DB.save.pupg[1]={start:1};a.G.DB.commit();
  assert.equal(await a.G.Cloud.sync(),true);assert.equal(await b.G.Cloud.sync(true),true);
- assert.equal(b.G.DB.save.v,5);assert.equal(b.G.DB.save.coins,999999999);assert.equal(b.G.DB.save.tickets.t1,999999);assert.equal(b.G.DB.isFav(1),true);assert.equal(b.G.DB.save.pstart[1],'vine-whip');assert.equal(b.G.DB.save.pused[1],7);assert.equal(b.G.DB.save.pupg[1].start,1);
+ assert.equal(b.G.DB.save.v,6);assert.equal(b.G.DB.save.coins,999999999);assert.equal(b.G.DB.save.tickets.t1,999999);assert.equal(b.G.DB.isFav(1),true);assert.equal(b.G.DB.save.pstart[1],'vine-whip');assert.equal(b.G.DB.save.pused[1],7);assert.equal(b.G.DB.save.pupg[1].start,1);
  b.G.Gacha.pull(b.G.DB.save,10,1,'t10');b.G.DB.commit();await b.G.Cloud.sync();await a.G.Cloud.sync(true);assert.equal(a.G.DB.save.tickets.t10,999998);
  a.G.Cloud.completedRun({t:2401,lv:50,kills:800,dex:1,shiny:false});await new Promise(ok=>setTimeout(ok,800));assert.equal((await b.G.Cloud.rankings()).find(r=>r.mine).time,2401);
 });
@@ -58,6 +58,16 @@ test('v5 inventory, nature, ability, learned TM and second start sync between re
  for(const k of ['bag','tms','ptm','pnat','pabil','pstart2'])assert.deepEqual(JSON.parse(JSON.stringify(b.G.DB.save[k])),JSON.parse(JSON.stringify(a.G.DB.save[k])));
  b.G.DB.save.bag.mint--;b.G.DB.save.tms['shadow-ball']--;b.G.DB.commit();await b.G.Cloud.sync();await a.G.Cloud.sync(true);
  assert.equal(a.G.DB.save.bag.mint,1);assert.equal(a.G.DB.save.tms['shadow-ball'],2);
+});
+test('v6 candy, permanent costumes, worn choices and event pity sync without touching the regular banner',async()=>{
+ a.G.DB.save.bag.candy=315;a.G.DB.save.skins={'bruja-gengar':12345};a.G.DB.save.pskin={94:['bruja-gengar',12345]};
+ a.G.DB.save.pity[10]=42;a.G.DB.save.pity[1]=13;a.G.DB.commit();
+ assert.equal(await a.G.Cloud.sync(),true);assert.equal(await b.G.Cloud.sync(true),true);
+ assert.equal(b.G.DB.save.v,6);assert.equal(b.G.DB.save.bag.candy,315);assert.equal(b.G.Skins.worn(b.G.DB.save,94),'bruja-gengar');
+ assert.equal(b.G.DB.save.pity[10],42);assert.equal(b.G.DB.save.pity[1],13);
+ b.G.Skins.wear(b.G.DB.save,94,'');b.G.DB.save.bag.candy-=300;b.G.DB.commit();
+ assert.equal(await b.G.Cloud.sync(),true);assert.equal(await a.G.Cloud.sync(true),true);
+ assert.equal(a.G.DB.save.bag.candy,15);assert.equal(a.G.Skins.worn(a.G.DB.save,94),'');assert.equal(a.G.Skins.owns(a.G.DB.save,'bruja-gengar'),true);
 });
 test('signing out retains durable cloud cache and source local account',async()=>{
  await a.G.DB.logout();assert.equal(a.G.DB.loggedIn,false);assert.ok([...a.storage.keys()].some(k=>k.startsWith('pokesurvivor.mobile.cloud.')));assert.equal((await a.G.DB.login('CloudTester','local-pass')).ok,true);assert.equal(a.G.DB.mode,'local');assert.equal(a.G.DB.save.tickets.t1,998);

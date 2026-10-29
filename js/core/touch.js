@@ -34,6 +34,7 @@ G.Touch = (() => {
   function spot(k) { const p = G.Settings.get('pad'); return p && Array.isArray(p[k]) ? p[k] : null; }
   const STICK_DEF = [0.14, 0.72];
   const fixed = () => G.Settings.get('stickMode') === 'fixed';
+  const anchored = () => G.Settings.get('stickMode') === 'anchor';
   /** Centro del joystick fijo, en px de pantalla. */
   function stickBase(w = frameWidth || cv.clientWidth, h = frameHeight || cv.clientHeight) {
     const p = spot('stick') || STICK_DEF, r = R();
@@ -80,6 +81,10 @@ G.Touch = (() => {
     addEventListener('blur', reset);
     addEventListener('pagehide', reset);
     document.addEventListener('visibilitychange', reset);
+    // A lost pointerup must not leave either joystick held after all fingers lift.
+    const allUp = e => { if (!e.touches || !e.touches.length) reset(); };
+    document.addEventListener('touchend', allUp, true);
+    document.addEventListener('touchcancel', allUp, true);
   }
 
   // HUD drawing and hit testing must share the last rendered coordinate space.
@@ -153,7 +158,7 @@ G.Touch = (() => {
     const p = canvasPoint(e.clientX, e.clientY);
     if (!p) { reset(); return; }
     s.x = p.x; s.y = p.y;
-    if (s.fixed) return;
+    if (s.fixed || (s === stick && anchored())) return;
     const dx = s.x - s.ox, dy = s.y - s.oy, d = Math.hypot(dx, dy), r = R();
     if (d > r) { s.ox = s.x - dx / d * r; s.oy = s.y - dy / d * r; }
   }

@@ -12,8 +12,9 @@ function boot(data = new Map(), fail = () => false) {
   const context={console,TextEncoder,Uint8Array,crypto:webcrypto,structuredClone,Blob,CustomEvent:class {constructor(type,o){this.type=type;this.detail=o?.detail}},localStorage:storage,
     addEventListener:(t,f)=>events[t]=f,document:{addEventListener(){}},G:{},dispatchEvent:e=>warnings.push(e)};
   context.window=context;vm.createContext(context);
-  for(const file of ['js/core/util.js','js/data/pokedex.js','js/data/sprites-meta.js','js/data/upgrades.js','js/data/moves.js','js/data/natures.js','js/data/abilities.js','js/data/tms.js','js/core/db.js','js/data/shop.js','js/systems/mons.js','js/systems/gacha.js']) vm.runInContext(fs.readFileSync(path.join(ROOT,file),'utf8'),context);
+  for(const file of ['js/core/util.js','js/data/pokedex.js','js/data/sprites-meta.js','js/data/upgrades.js','js/data/moves.js','js/data/natures.js','js/data/abilities.js','js/data/tms.js','js/core/skins.js','js/core/db.js','js/data/shop.js','js/systems/mons.js','js/systems/gacha.js']) vm.runInContext(fs.readFileSync(path.join(ROOT,file),'utf8'),context);
   context.G.Sprites={hasShiny:d=>!!context.G.SPRITE_META[d]?.sh};
+  context.G.Halloween={on:false,SKIN_PRICE:300};
   return {G:context.G,data,warnings,events};
 }
 const plain = v=>JSON.parse(JSON.stringify(v));
@@ -62,7 +63,7 @@ test('v3 saves migrate without changing balances or collection; new favorites an
  let legacy=plain(a.G.DB.save);legacy.v=3;legacy.coins=17;legacy.tickets={t1:2,t10:3};legacy.pupg={1:{hp:3}};
  delete legacy.dfav;delete legacy.pused;delete legacy.pstart;a.data.set(SAVE,JSON.stringify(legacy));
  const b=boot(a.data);assert.equal(await b.G.DB.ready(),true);const s=b.G.DB.save;
- assert.equal(s.v,5);assert.equal(s.coins,17);assert.deepEqual(plain(s.tickets),{t1:2,t10:3});assert.deepEqual(plain(s.owned),legacy.owned);assert.deepEqual(plain(s.pupg),legacy.pupg);
+ assert.equal(s.v,6);assert.equal(s.coins,17);assert.deepEqual(plain(s.tickets),{t1:2,t10:3});assert.deepEqual(plain(s.owned),legacy.owned);assert.deepEqual(plain(s.pupg),legacy.pupg);
  b.G.DB.setFav(1,true);s.pused[1]=8;s.pstart[1]='vine-whip';s.pupg[1].start=1;b.G.DB.commit();
  const c=boot(a.data);await c.G.DB.ready();const exported=JSON.parse(c.G.DB.exportSave()).save;
  assert.equal(c.G.DB.isFav(1),true);assert.equal(exported.pused[1],8);assert.equal(exported.pstart[1],'vine-whip');assert.equal(exported.pupg[1].start,1);
@@ -82,12 +83,12 @@ test('refill refuses guests, stale windows, active battles and unresolved cloud 
  a.events.storage({key:SAVE});assert.throws(()=>a.G.DB.refillResources());assert.equal(a.G.DB.save.coins,999999);
 });
 
-test('v4 migrates to v5 without refills; shop, nature, ability, TMs and second start survive reload and transfer',async()=>{
+test('v4 migrates to the latest save without refills; shop, nature, ability, TMs and second start survive reload and transfer',async()=>{
  const a=boot();await a.G.DB.register('Tester','testpass');a.G.DB.grant(150,'starter');
  const legacy=plain(a.G.DB.save);legacy.v=4;legacy.partner=150;legacy.coins=20000;legacy.tickets={t1:13,t10:2};
  for(const k of ['bag','tms','ptm','pnat','pabil','pstart2'])delete legacy[k];a.data.set(SAVE,JSON.stringify(legacy));
  const b=boot(a.data);await b.G.DB.ready();const s=b.G.DB.save;
- assert.equal(s.v,5);assert.equal(s.created,legacy.created);assert.equal(s.coins,20000);assert.deepEqual(plain(s.tickets),legacy.tickets);
+ assert.equal(s.v,6);assert.equal(s.created,legacy.created);assert.equal(s.coins,20000);assert.deepEqual(plain(s.tickets),legacy.tickets);
  assert.equal(b.G.Shop.buy('mint').ok,true);assert.equal(s.coins,18500);assert.equal(s.bag.mint,1);
  assert.equal(b.G.Shop.take('mint'),true);b.G.Mons.setNature(150,'adamant');
  assert.equal(b.G.Shop.buy('caph').ok,true);assert.equal(b.G.Shop.take('caph'),true);b.G.Mons.setAbility(150,2);
@@ -120,4 +121,44 @@ test('a completed regional collection earns the shiny charm without resetting or
  for(const p of a.G.DEX.filter(p=>p.gen===1))a.G.DB.grant(p.dex,'gacha');
  assert.equal(a.G.Gacha.hasIris(s,1),true);assert.equal(a.G.Gacha.shinyRate(s,1),0.02);
  a.G.DB.commit();const b=boot(a.data);await b.G.DB.ready();assert.equal(b.G.Gacha.shinyRate(b.G.DB.save,1),0.02);
+});
+
+test('v5 saves gain empty costume fields without resetting progress; candy purchases, outfit choices and event pity survive transfer',async()=>{
+ const a=boot();await a.G.DB.register('Tester','testpass');a.G.DB.grant(94,'starter');a.G.DB.grant(25,'gacha');
+ const legacy=plain(a.G.DB.save);legacy.v=5;legacy.coins=91;legacy.tickets={t1:17,t10:2};legacy.pupg={94:{hp:2}};
+ delete legacy.skins;delete legacy.pskin;a.data.set(SAVE,JSON.stringify(legacy));
+ const b=boot(a.data);assert.equal(await b.G.DB.ready(),true);const s=b.G.DB.save;
+ assert.equal(s.v,6);assert.equal(s.created,legacy.created);assert.equal(s.coins,91);assert.deepEqual(plain(s.tickets),legacy.tickets);
+ assert.deepEqual(plain(s.owned),legacy.owned);assert.deepEqual(plain(s.pupg),legacy.pupg);
+ assert.deepEqual(plain(s.skins),{});assert.deepEqual(plain(s.pskin),{});
+ s.bag.candy=620;
+ assert.equal(b.G.Shop.buySkin('bruja-gengar').ok,false);assert.equal(s.bag.candy,620);
+ assert.equal(b.G.Shop.buy('candy').ok,false);assert.equal(s.coins,91);
+ b.G.Halloween.on=true;
+ assert.equal(b.G.Shop.buySkin('bruja-gengar').ok,true);assert.equal(s.bag.candy,320);assert.equal(b.G.Skins.worn(s,94),'bruja-gengar');
+ assert.equal(b.G.Shop.buySkin('bruja-gengar').ok,false);assert.equal(s.bag.candy,320);
+ assert.equal(b.G.Shop.buySkin('bruja-pikachu').ok,true);assert.equal(s.bag.candy,20);
+ assert.equal(b.G.Shop.buySkin('bruja-umbreon').ok,false);assert.equal(s.bag.candy,20);
+ b.G.Skins.wear(s,25,'');s.pity[1]=12;s.pity[10]=69;
+ const result=b.G.Gacha.pull(s,1,10,'t1');assert.equal(result.length,1);assert.equal(result[0].rarity,5);
+ assert.equal(s.pity[10],0);assert.equal(s.pity[1],12);assert.equal(s.tickets.t1,16);
+ b.G.DB.commit();const c=boot(a.data);assert.equal(await c.G.DB.ready(),true);
+ for(const k of ['skins','pskin','bag','pity','tickets','owned','pupg'])assert.deepEqual(plain(c.G.DB.save[k]),plain(s[k]),k);
+ assert.equal(c.G.Halloween.on,false);assert.equal(c.G.Skins.worn(c.G.DB.save,94),'bruja-gengar');assert.equal(c.G.Skins.worn(c.G.DB.save,25),'');
+ const d=boot();await d.G.DB.register('Other','testpass');d.G.DB.importSave(c.G.DB.exportSave());
+ for(const k of ['skins','pskin','bag','pity','tickets','owned','pupg'])assert.deepEqual(plain(d.G.DB.save[k]),plain(s[k]),k);
+ const before=plain(d.G.DB.save);assert.equal(d.G.Gacha.pull(d.G.DB.save,1,10,'t1'),null);assert.deepEqual(plain(d.G.DB.save),before);
+});
+
+test('costume imports remove unknown, unowned or mismatched selections and reject malformed or future saves without replacing progress',async()=>{
+ const a=boot();await a.G.DB.register('Tester','testpass');const data=JSON.parse(a.G.DB.exportSave());
+ data.save.skins={'bruja-gengar':12345,'bruja-pikachu':-1,'unknown-costume':12345};
+ data.save.pskin={94:['bruja-gengar',12346],25:['bruja-gengar',12346],197:['bruja-umbreon',12346],999999:['',12346],1:['',12346]};
+ a.G.DB.importSave(JSON.stringify(data));assert.deepEqual(plain(a.G.DB.save.skins),{'bruja-gengar':12345});
+ assert.deepEqual(plain(a.G.DB.save.pskin),{94:['bruja-gengar',12346],1:['',12346]});
+ const current=plain(a.G.DB.save);
+ for(const malformed of [{skins:[]},{pskin:[]},{v:7}]) {
+  const bad=JSON.parse(a.G.DB.exportSave());Object.assign(bad.save,malformed);
+  assert.throws(()=>a.G.DB.importSave(JSON.stringify(bad)));assert.deepEqual(plain(a.G.DB.save),current);
+ }
 });

@@ -30,6 +30,17 @@
 
 維護測試使用 Node >=24.12、Java 21：`npm ci --prefix tools/cloud`，再執行 `tools/cloud/node_modules/.bin/firebase emulators:exec --project demo-pokesurvivor --only auth,firestore "node --test tools/cloud/rules.test.mjs && node --test tools/cloud/integration.test.mjs && node --test tools/cloud/rooms.test.mjs"`。正式站點不需要 Node／Java 或本機模擬器。
 
+## 2026-10-30 更新
+
+已查核官方最新 [`110550a8`](https://github.com/JPTER78/pokesurvivor/commit/110550a80f81eadd6924b6286807935a479e9b4f)。遊戲內容整合至最後公開可讀原始碼 [`d667c216`](https://github.com/JPTER78/pokesurvivor/commit/d667c216ddc99ee7bbb16a0ca0528f25461f037e)；之後官方移除了分開的程式碼，新增的直播／影片通知、官方隱私頁與 SEO 不套用於本站。最新繁體中文翻譯已合併。
+
+- 萬聖節夜間地圖、南瓜、糖果、幽靈之夜卡池、三種永久女巫造型與第 30 分鐘大耿鬼。活動跟隨西班牙時間 10/30 至 11/2；2026 年對應台灣 **10/30 07:00 至 11/3 07:00**。糖果靠遊玩取得，既有補滿按鈕仍只補金幣與兩種券。
+- 修正雙指選卡卡住、重選後誤選、提示擋觸控、極寬畫面敵人重生與部分防禦／速度增益。新增「定點」搖桿，背景切換自動暫停與返回手勢處理。保留原 iPhone 畫布與觸控修正。
+- 多人網路壅塞時保留事件佇列，減少延遲累積；造型和糖果跟隨合作戰鬥同步。房間協定升為 **3**，避免舊版隊友使用不同地圖；舊房間可以結束，新舊版不能混搭。活動模式以房間開局的伺服器時間為準。
+- 存檔升為 **v6**，保存 `skins`、`pskin`、糖果與活動保底。舊存檔不重設；手機與電腦都更新再換裝置。雲端、排行榜、補滿按鈕維持本站版本，不使用官方簽章或 TURN 服務。
+
+活動時間來自本站 `version.json` 的 HTTP Date，不使用手機日期；首次離線開啟無法取得時間時，活動暫不開啟，既有造型及存檔仍保留。來源及排除範圍見 `UPSTREAM.json`。
+
 ## 2026-10-26 更新
 
 已整合官方 [`680c3e12`](https://github.com/JPTER78/pokesurvivor/commit/680c3e12c670a0f131ec846c43248372853389b1)（比上次多 24 個提交）：變隱龍商店、薄荷與特性膠囊、每日 8 種招式學習器、性格與特性、第二個初始招式、百連抽及跳過動畫、地區閃耀護符、戰鬥寶玉、阿爾宙斯石板與傷害統計、隊友觀戰、結算傷害明細，以及手機雙搖桿和多人同步修正。抽獎 UI 依官方改為十連／百連；普通券仍可使用。

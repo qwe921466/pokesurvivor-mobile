@@ -2,6 +2,7 @@
 G.Net = (() => {
   const ICE = [{urls:['stun:stun.l.google.com:19302','stun:stun1.l.google.com:19302']}];
   const peers = new Map(), handlers = new Set(), peerHandlers = new Set();
+  const BUSY_BYTES = 64 * 1024;
   let roomId, uid, hostUid, isHost=false, ctx, members=[], generation=0, retryAt=0;
   const stats={sent:0,recv:0,relaySent:0,sentBytes:0,jsonBytes:0,recvBytes:0,binarySent:0,binaryRecv:0,invalidBinary:0};
   const emit = (u,mode) => peerHandlers.forEach(fn=>fn(u,mode));
@@ -154,20 +155,24 @@ G.Net = (() => {
     for(const [u,p] of peers)if(p.mode==='failed'){drop(u,true);}
     syncMembers(members);
   }
+  // Wait while disconnected or queued; Coop retains events and sends the newest state later.
+  function busy(u) {
+    const p=peers.get(u);
+    return !roomId || p?.mode!=='direct' || p.dc?.readyState!=='open' || p.dc.bufferedAmount>BUSY_BYTES;
+  }
   function send(to,msg) {
     const p=peers.get(to);
-    if(!roomId||p?.mode!=='direct'||p.dc.readyState!=='open'||msg?.k!=='f')return;
-    // Bound queued data during a suspended/background peer instead of exhausting memory.
-    if(p.dc.bufferedAmount>2*1024*1024)return;
+    if(busy(to)||msg?.k!=='f')return false;
     try {
       const json=JSON.stringify(msg),len=G.NetCodec.size(json);
       const packed=p.binaryVersion===G.NetCodec.version?G.NetCodec.encode(msg):null;
       const binary=packed&&packed.byteLength<len,body=binary?packed:json;
       p.dc.send(body);stats.sent++;stats.sentBytes+=binary?packed.byteLength:len;stats.jsonBytes+=len;
       if(binary)stats.binarySent++;
-    } catch { fail(to,p); }
+      return true;
+    } catch { fail(to,p); return false; }
   }
-  return {open,close,syncMembers,retry,send,toHost(msg){if(!isHost)send(hostUid,msg);},
+  return {open,close,syncMembers,retry,send,busy,toHost(msg){return !isHost && send(hostUid,msg);},
     broadcast(msg,except){for(const u of peers.keys())if(u!==except)send(u,msg);},
     on(fn){handlers.add(fn);},off(fn){handlers.delete(fn);},onPeer(fn){peerHandlers.add(fn);},
     mode:u=>peers.get(u)?.mode||'closed',slow:()=>false,peers:()=>[...peers.keys()],
